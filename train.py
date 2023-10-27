@@ -2,6 +2,7 @@ import os
 import argparse
 import numpy as np
 import random
+import glob
 import torch
 import torch.nn as nn
 import spiking_resnet, sew_resnet
@@ -29,9 +30,9 @@ def parser_args():
     parser.add_argument('--duration', default=50, type=int, help='duration of a single frame (ms)')
     parser.add_argument('--nsteps', default=8, type=int, help='number of time steps')
     parser.add_argument('--nclasses', default=101, type=int, help='number of classes')
-    parser.add_argument('--batch_size', default=60, type=int, help='batch size')
+    parser.add_argument('--batch_size', default=8, type=int, help='batch size')
     # model
-    parser.add_argument('--model', default='sew_resnet50', type=str, help='model type (default: sew_resnet18)')
+    parser.add_argument('--model', default='sew_resnet101', type=str, help='model type (default: sew_resnet18)')
     parser.add_argument('--save_path', default='weights/sew50_checkpoint_319.pth', type=str, help='path to saved weights')
     parser.add_argument('--connect_f', default='ADD', type=str, help='spike-element-wise connect function')
     # run
@@ -47,6 +48,7 @@ def parser_args():
     parser.add_argument('--sched', default='StepLR', type=str, help='scheduler')
     parser.add_argument('--step_size', default=40, type=int, help='step size for scheduler')
     parser.add_argument('--gamma', default=0.1, type=float, help='gamma for scheduler')
+    parser.add_argument('--resume', help='resume from checkpoint', action='store_true')
     # dist
     parser.add_argument('--world-size', default=10, type=int, help='number of distributed processes')
     parser.add_argument('--dist-url', default='env://', help='url used to set up distributed training')
@@ -166,21 +168,18 @@ def train(
     train_loader: DataLoader,
     val_loader: DataLoader,
     nepochs: int,
+    epoch: int,
     # tb_writer: SummaryWriter,
     output_dir: str,
     args: argparse.Namespace,
 ):  
     if utils.is_master():
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        if not os.path.exists(os.path.join(output_dir, 'checkpoint')):
-            os.makedirs(os.path.join(output_dir, 'checkpoint'))
         tb_writer = SummaryWriter(output_dir + '/log')
         print('log saved to {}'.format(output_dir + '/log'))
         
         
     # train 
-    epoch = 0
+    epoch = epoch
     while(epoch < nepochs):
         print('Epoch {}/{}'.format(epoch+1, nepochs))
         model.train()
@@ -346,7 +345,27 @@ def main(args):
 
     # save
     output_dir = _get_output_dir(args)
-    # tb_writer = SummaryWriter(output_dir + '/log')
+    if utils.is_master():
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        if not os.path.exists(os.path.join(output_dir, 'checkpoint')):
+            os.makedirs(os.path.join(output_dir, 'checkpoint'))
+    
+    # resume
+    epoch = 0
+    if args.resume:
+        checkpoints = glob.glob(os.path.join(output_dir, 'checkpoint/*.pth'))
+        if checkpoints:
+            latest_checkpoint = max(checkpoints, key=os.path.getctime)
+            state_dict = torch.load(latest_checkpoint)
+            if args.distributed:
+                model.load_state_dict(state_dict['model'])
+            else:
+                model.load_state_dict({k.replace('module.', ''):v for k, v in state_dict['model'].items()})
+            optimizer.load_state_dict(state_dict['optimizer'])
+            scheduler.load_state_dict(state_dict['scheduler'])
+            epoch = state_dict['epoch']
+            print('load checkpoint from {}'.format(latest_checkpoint))
 
     train(
         model=model,
@@ -356,7 +375,7 @@ def main(args):
         train_loader=train_loader,
         val_loader=val_loader,
         nepochs=args.nepochs,
-        # tb_writer=tb_writer,
+        epoch=epoch,
         output_dir=output_dir,
         args=args
     )
