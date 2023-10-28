@@ -32,7 +32,7 @@ def parser_args():
     parser.add_argument('--nclasses', default=101, type=int, help='number of classes')
     parser.add_argument('--batch_size', default=8, type=int, help='batch size')
     # model
-    parser.add_argument('--model', default='sew_resnet101', type=str, help='model type (default: sew_resnet18)')
+    parser.add_argument('--model', default='spiking_resnet18', type=str, help='model type (default: sew_resnet18)')
     parser.add_argument('--save_path', default='weights/sew50_checkpoint_319.pth', type=str, help='path to saved weights')
     parser.add_argument('--connect_f', default='ADD', type=str, help='spike-element-wise connect function')
     # run
