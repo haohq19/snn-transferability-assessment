@@ -30,10 +30,12 @@ def parser_args():
     parser.add_argument('--duration', default=50, type=int, help='duration of a single frame (ms)')
     parser.add_argument('--nsteps', default=8, type=int, help='number of time steps')
     parser.add_argument('--nclasses', default=101, type=int, help='number of classes')
-    parser.add_argument('--batch_size', default=8, type=int, help='batch size')
+    parser.add_argument('--batch_size', default=24, type=int, help='batch size')
     # model
-    parser.add_argument('--model', default='spiking_resnet18', type=str, help='model type (default: sew_resnet18)')
-    parser.add_argument('--save_path', default='weights/sew50_checkpoint_319.pth', type=str, help='path to saved weights')
+    parser.add_argument('--model', default='spiking_resnet50', type=str, help='model type (default: sew_resnet18)')
+    parser.add_argument('--pre_trained', help='load pre-trained weights', action='store_true')
+    parser.add_argument('--pre_trained_path', default='', type=str, help='path to pre-trained weights')
+    parser.add_argument('--freeze_backbone', help='freeze the backbone', action='store_true')
     parser.add_argument('--connect_f', default='ADD', type=str, help='spike-element-wise connect function')
     # run
     parser.add_argument('--device_id', default=6, type=int, help='GPU id to use.')
@@ -98,27 +100,39 @@ def load_data(args):
 
 def load_model(args):
     # load weights
-    save = torch.load(args.save_path)
-    weight = save['model']
+    pre_trained_weights = None
+    if args.pre_trained:
+        # if file does not exist, raise error
+        if not os.path.exists(args.pre_trained_path):
+            raise FileNotFoundError(args.pre_trained_path)
+        else:
+            pre_trained_weights = torch.load(args.pre_trained_path)['model']
 
     # model
     if args.model in sew_resnet.__dict__:
         model = sew_resnet.__dict__[args.model](num_classes=args.nclasses, T=args.nsteps, connect_f=args.connect_f)
-        # params = model.state_dict()
-        # for k, v in weight.items():
-        #     if k in params:
-        #         params[k] = v
-        # model.load_state_dict(params)
+        if pre_trained_weights is not None:
+            params = model.state_dict()
+            for k, v in pre_trained_weights.items():
+                if k in params:
+                    params[k] = v
+            model.load_state_dict(params)
     elif args.model in spiking_resnet.__dict__:
         model = spiking_resnet.__dict__[args.model](num_classes=args.nclasses, T=args.nsteps)
-        # raise NotImplementedError(args.model)
+        if pre_trained_weights is not None:
+            params = model.state_dict()
+            for k, v in pre_trained_weights.items():
+                if k in params:
+                    params[k] = v
+            model.load_state_dict(params)
     else:
         raise NotImplementedError(args.model)
     
     # freeze the weights
-    # for name, param in model.named_parameters():
-    #     if 'layer' in name and 'layer1' not in name:
-    #         param.requires_grad = False
+    if args.freeze_backbone:
+        for name, param in model.named_parameters():
+            if 'fc' not in name:
+                param.requires_grad = False
 
     return model
 
@@ -177,7 +191,7 @@ def train(
         tb_writer = SummaryWriter(output_dir + '/log')
         print('log saved to {}'.format(output_dir + '/log'))
         
-        
+    torch.cuda.empty_cache()
     # train 
     epoch = epoch
     while(epoch < nepochs):
@@ -318,18 +332,34 @@ def main(args):
      # data
     train_loader, val_loader, test_loader = load_data(args)
 
+    # criterion
+    criterion = nn.CrossEntropyLoss()
+    args.criterion = criterion.__class__.__name__
+    
+    # resume
+    output_dir = _get_output_dir(args)
+    state_dict = None
+    if args.resume:
+        checkpoints = glob.glob(os.path.join(output_dir, 'checkpoint/*.pth'))
+        if checkpoints:
+            latest_checkpoint = max(checkpoints, key=os.path.getctime)
+            state_dict = torch.load(latest_checkpoint)
+            print('load checkpoint from {}'.format(latest_checkpoint))
+
     # model
     model = load_model(args)
+    if state_dict:
+        model.load_state_dict({k.replace('module.', ''):v for k, v in state_dict['model'].items()})
     model.cuda()
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
     if args.distributed:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank])
+    
     # run
+    epoch = 0
     optim = args.optim
     sched = args.sched
-    criterion = nn.CrossEntropyLoss()
-    args.criterion = criterion.__class__.__name__
     params = filter(lambda p: p.requires_grad, model.parameters())
     if optim == 'SGD':
         optimizer = torch.optim.SGD(params, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
@@ -341,31 +371,28 @@ def main(args):
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
     else:
         raise NotImplementedError(sched)
+    if state_dict:
+            # latest_checkpoint = max(checkpoints, key=os.path.getctime)
+            # state_dict = torch.load(latest_checkpoint)
+            # if args.distributed:
+            #     model.load_state_dict(state_dict['model'])
+            # else:
+            #     # model.load_state_dict({k.replace('module.', ''):v for k, v in state_dict['model'].items()})
+            #     model.load_state_dict(state_dict['model']['module'])
+        optimizer.load_state_dict(state_dict['optimizer'])
+        scheduler.load_state_dict(state_dict['scheduler'])
+        epoch = state_dict['epoch']
 
-
-    # save
-    output_dir = _get_output_dir(args)
+    # output_dir
     if utils.is_master():
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         if not os.path.exists(os.path.join(output_dir, 'checkpoint')):
             os.makedirs(os.path.join(output_dir, 'checkpoint'))
     
-    # resume
-    epoch = 0
-    if args.resume:
-        checkpoints = glob.glob(os.path.join(output_dir, 'checkpoint/*.pth'))
-        if checkpoints:
-            latest_checkpoint = max(checkpoints, key=os.path.getctime)
-            state_dict = torch.load(latest_checkpoint)
-            if args.distributed:
-                model.load_state_dict(state_dict['model'])
-            else:
-                model.load_state_dict({k.replace('module.', ''):v for k, v in state_dict['model'].items()})
-            optimizer.load_state_dict(state_dict['optimizer'])
-            scheduler.load_state_dict(state_dict['scheduler'])
-            epoch = state_dict['epoch']
-            print('load checkpoint from {}'.format(latest_checkpoint))
+
+    
+            
 
     train(
         model=model,
