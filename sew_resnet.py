@@ -217,6 +217,22 @@ class SEWResNet(nn.Module):
                                 norm_layer=norm_layer, connect_f=connect_f))
 
         return nn.Sequential(*layers)
+    
+    def get_feature_map(self, x):
+        '''
+        return feature map of size (batch_size, nsteps, 512)
+        '''
+        with torch.no_grad:
+            x = self.conv(x)
+            x = self.avgpool1(x)
+            x = self.sn1(x)
+            x = self.layer1(x)
+            x = self.layer2(x)
+            x = self.layer3(x)
+            x = self.layer4(x)
+            x = self.avgpool2(x)
+            
+        return x
 
     def _forward_impl(self, x):
         x = self.conv(x)
