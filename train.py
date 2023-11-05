@@ -3,6 +3,7 @@ import argparse
 import numpy as np
 import random
 import glob
+import hashlib
 import torch
 import torch.nn as nn
 import spiking_resnet, sew_resnet
@@ -25,16 +26,16 @@ np.random.seed(_seed_)
 def parser_args():
     parser = argparse.ArgumentParser(description='Fine-tune a SNN')
     # data
-    parser.add_argument('--dataset', default='n_caltech101', type=str, help='dataset')
-    parser.add_argument('--root', default='/home/haohq/datasets/NCaltech101', type=str, help='path to dataset')
+    parser.add_argument('--dataset', default='cifar10_dvs', type=str, help='dataset')
+    parser.add_argument('--root', default='/home/haohq/datasets/CIFAR10DVS', type=str, help='path to dataset')
     parser.add_argument('--duration', default=50, type=int, help='duration of a single frame (ms)')
     parser.add_argument('--nsteps', default=8, type=int, help='number of time steps')
-    parser.add_argument('--nclasses', default=101, type=int, help='number of classes')
-    parser.add_argument('--batch_size', default=10, type=int, help='batch size')
+    parser.add_argument('--nclasses', default=10, type=int, help='number of classes')
+    parser.add_argument('--batch_size', default=128, type=int, help='batch size')
     # model
-    parser.add_argument('--model', default='spiking_resnet101', type=str, help='model type (default: sew_resnet18)')
-    parser.add_argument('--pre_trained', help='load pre-trained weights', action='store_true')
-    parser.add_argument('--pre_trained_path', default='', type=str, help='path to pre-trained weights')
+    parser.add_argument('--model', default='sew_resnet18', type=str, help='model type (default: sew_resnet18)')
+    parser.add_argument('--pretrained', help='load pre-trained weights', action='store_true')
+    parser.add_argument('--pretrained_path', default='', type=str, help='path to pre-trained weights')
     parser.add_argument('--freeze_backbone', help='freeze the backbone', action='store_true')
     parser.add_argument('--connect_f', default='ADD', type=str, help='spike-element-wise connect function')
     # run
@@ -100,28 +101,28 @@ def load_data(args):
 
 def load_model(args):
     # load weights
-    pre_trained_weights = None
-    if args.pre_trained:
+    pretrained_weights = None
+    if args.pretrained:
         # if file does not exist, raise error
-        if not os.path.exists(args.pre_trained_path):
-            raise FileNotFoundError(args.pre_trained_path)
+        if not os.path.exists(args.pretrained_path):
+            raise FileNotFoundError(args.pretrained_path)
         else:
-            pre_trained_weights = torch.load(args.pre_trained_path)['model']
+            pretrained_weights = torch.load(args.pretrained_path)['model']
 
     # model
     if args.model in sew_resnet.__dict__:
         model = sew_resnet.__dict__[args.model](num_classes=args.nclasses, T=args.nsteps, connect_f=args.connect_f)
-        if pre_trained_weights is not None:
+        if pretrained_weights is not None:
             params = model.state_dict()
-            for k, v in pre_trained_weights.items():
+            for k, v in pretrained_weights.items():
                 if k in params:
                     params[k] = v
             model.load_state_dict(params)
     elif args.model in spiking_resnet.__dict__:
         model = spiking_resnet.__dict__[args.model](num_classes=args.nclasses, T=args.nsteps)
-        if pre_trained_weights is not None:
+        if pretrained_weights is not None:
             params = model.state_dict()
-            for k, v in pre_trained_weights.items():
+            for k, v in pretrained_weights.items():
                 if k in params:
                     params[k] = v
             model.load_state_dict(params)
@@ -171,6 +172,16 @@ def _get_output_dir(args):
 
     if args.connect_f:
         output_dir += f'_cnf{args.connect_f}'
+
+    # pretrained
+    if args.pretrained:
+        sha256_hash = hashlib.sha256(args.pretrained_path.encode()  ).hexdigest()
+        output_dir += '_pretrained'
+        output_dir += f'_{sha256_hash[:16]}'
+    
+    if args.freeze_backbone:
+        output_dir += '_fb'
+
     
     return output_dir
 
@@ -190,7 +201,12 @@ def train(
     if utils.is_master():
         tb_writer = SummaryWriter(output_dir + '/log')
         print('log saved to {}'.format(output_dir + '/log'))
-        
+
+    if utils.is_master() and args.pretrained:
+        # save the pretrained_path to output_dir
+        with open(os.path.join(output_dir, 'pretrained_path.txt'), 'w') as f:
+            f.write(args.pretrained_path)
+
     torch.cuda.empty_cache()
     # train 
     epoch = epoch
@@ -389,10 +405,7 @@ def main(args):
             os.makedirs(output_dir)
         if not os.path.exists(os.path.join(output_dir, 'checkpoint')):
             os.makedirs(os.path.join(output_dir, 'checkpoint'))
-    
-
-    
-            
+   
 
     train(
         model=model,
