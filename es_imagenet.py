@@ -9,13 +9,13 @@ class ESImageNet(torch.utils.data.Dataset):
     def __init__(
             self,
             root: str,
-            train: bool = True, 
-            nsteps: int = 4
+            train: bool = True,
+            nsteps: int = 8,
             ):
         '''
         param root: the root path of the dataset
         param train: if True, return the training set, else return the validation set, default True
-        param nsteps: the number of steps of the input data, must be divisible by 8
+        param nsteps: the number of steps of the input data, default 8
         '''
         super(ESImageNet).__init__()
 
@@ -24,8 +24,8 @@ class ESImageNet(torch.utils.data.Dataset):
         self.train_label_path = os.path.join(self.root, 'trainlabel.txt')
         self.val_label_path = os.path.join(self.root, 'vallabel.txt')
         self.nsteps = nsteps
-        if 8 % self.nsteps != 0:
-            raise ValueError('8 must be divisible by nsteps')  # 8 is the number of frames in origin event stream
+        if self.nsteps != 8:
+            raise NotImplementedError('nsteps must be 8')
         file_names = []
         if self.train:
             self.path = os.path.join(self.root, 'train')
@@ -108,9 +108,3 @@ class ESImageNet(torch.utils.data.Dataset):
 
         return torch.utils.data.Subset(self, train_idx), torch.utils.data.Subset(self, test_idx)
 
-
-
-if __name__ == '__main__':
-    es = ESImageNet(root='/home/haohq/datasets/ESImageNet', train=True, nsteps=4)
-    it = es.__getitem__(0)
-    print(0)

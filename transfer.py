@@ -24,7 +24,7 @@ torch.backends.cudnn.benchmark = False
 np.random.seed(_seed_)
 
 def parser_args():
-    parser = argparse.ArgumentParser(description='pretrain SNN')
+    parser = argparse.ArgumentParser(description='transfer SNN')
     # data
     parser.add_argument('--dataset', default='', type=str, help='dataset')
     parser.add_argument('--root', default='', type=str, help='path to dataset')
@@ -34,24 +34,21 @@ def parser_args():
     parser.add_argument('--batch_size', default=256, type=int, help='batch size')
     # model
     parser.add_argument('--model', default='', type=str, help='model type')
-    parser.add_argument('--pretrained', help='load pre-trained weights', action='store_true')
     parser.add_argument('--pretrained_path', default='', type=str, help='path to pre-trained weights')
-    parser.add_argument('--freeze_backbone', help='freeze the backbone', action='store_true')
     parser.add_argument('--connect_f', default='ADD', type=str, help='spike-element-wise connect function')
     # run
     parser.add_argument('--device_id', default=6, type=int, help='GPU id to use.')
-    parser.add_argument('--nepochs', default=200, type=int, help='number of epochs')
+    parser.add_argument('--nepochs', default=10, type=int, help='number of epochs')
     parser.add_argument('--nworkers', default=16, type=int, help='number of workers')
-    parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
+    parser.add_argument('--lr', default=0.01, type=float, help='learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, help='momentum')
     parser.add_argument('--weight_decay', default=0, type=float, help='weight decay')
     parser.add_argument('--optim', default='Adam', type=str, help='optimizer')
-    parser.add_argument('--output_dir', default='output/', help='path where to save')
-    parser.add_argument('--save_freq', default=10, type=int, help='save frequency')
+    parser.add_argument('--output_dir', default='', help='path where to save')
+    parser.add_argument('--save_freq', default=1, type=int, help='save frequency')
     parser.add_argument('--sched', default='StepLR', type=str, help='scheduler')
-    parser.add_argument('--step_size', default=40, type=int, help='step size for scheduler')
-    parser.add_argument('--gamma', default=0.1, type=float, help='gamma for scheduler')
-    parser.add_argument('--resume', help='resume from checkpoint', action='store_true')
+    parser.add_argument('--step_size', default=3, type=int, help='step size for scheduler')
+    parser.add_argument('--gamma', default=0.3, type=float, help='gamma for scheduler')
     # dist
     parser.add_argument('--world-size', default=8, type=int, help='number of distributed processes')
     parser.add_argument('--dist-url', default='env://', help='url used to set up distributed training')
@@ -101,13 +98,14 @@ def load_data(args):
 
 def load_model(args):
     # load weights
-    pretrained_weights = None
-    if args.pretrained:
-        # if file does not exist, raise error
-        if not os.path.exists(args.pretrained_path):
-            raise FileNotFoundError(args.pretrained_path)
+    if not os.path.exists(args.pretrained_path):
+        raise FileNotFoundError(args.pretrained_path)
+    else:
+        checkpoint = torch.load(args.pretrained_path)
+        if 'model' in checkpoint.keys():
+            pretrained_weights = checkpoint['model']
         else:
-            pretrained_weights = torch.load(args.pretrained_path)['model']
+            pretrained_weights = checkpoint
 
     # model
     if args.model in sew_resnet.__dict__:
@@ -118,6 +116,7 @@ def load_model(args):
                 if k in params:
                     params[k] = v
             model.load_state_dict(params)
+            print('load pretrained weights from {}'.format(args.pretrained_path))
     elif args.model in spiking_resnet.__dict__:
         model = spiking_resnet.__dict__[args.model](num_classes=args.nclasses, T=args.nsteps)
         if pretrained_weights is not None:
@@ -126,14 +125,13 @@ def load_model(args):
                 if k in params:
                     params[k] = v
             model.load_state_dict(params)
+            print('load pretrained weights from {}'.format(args.pretrained_path))
     else:
         raise NotImplementedError(args.model)
     
-    # freeze the weights
-    if args.freeze_backbone:
-        for name, param in model.named_parameters():
-            if 'fc' not in name:
-                param.requires_grad = False
+    for name, param in model.named_parameters():
+        if 'fc' not in name:
+            param.requires_grad = False
 
     return model
 
@@ -174,14 +172,10 @@ def _get_output_dir(args):
         output_dir += f'_cnf{args.connect_f}'
 
     # pretrained
-    if args.pretrained:
-        sha256_hash = hashlib.sha256(args.pretrained_path.encode()  ).hexdigest()
-        output_dir += '_pretrained'
-        output_dir += f'_{sha256_hash[:16]}'
     
-    if args.freeze_backbone:
-        output_dir += '_fb'
-
+    sha256_hash = hashlib.sha256(args.pretrained_path.encode()).hexdigest()
+    output_dir += '_pt'
+    output_dir += f'_{sha256_hash[:16]}'
     
     return output_dir
 
@@ -194,15 +188,12 @@ def train(
     val_loader: DataLoader,
     nepochs: int,
     epoch: int,
-    # tb_writer: SummaryWriter,
     output_dir: str,
     args: argparse.Namespace,
 ):  
     if utils.is_master():
         tb_writer = SummaryWriter(output_dir + '/log')
         print('log saved to {}'.format(output_dir + '/log'))
-
-    if utils.is_master() and args.pretrained:
         # save the pretrained_path to output_dir
         with open(os.path.join(output_dir, 'pretrained_path.txt'), 'w') as f:
             f.write(args.pretrained_path)
@@ -334,6 +325,7 @@ def test(
     print('test_acc@1: {:.3f}%, test_acc@5: {:.3f}%'.format(top1_accuracy, top5_accuracy))
 
 
+
 def main(args):
     # init distributed training
     utils.init_dist(args)
@@ -354,18 +346,9 @@ def main(args):
     
     # resume
     output_dir = _get_output_dir(args)
-    state_dict = None
-    if args.resume:
-        checkpoints = glob.glob(os.path.join(output_dir, 'checkpoint/*.pth'))
-        if checkpoints:
-            latest_checkpoint = max(checkpoints, key=os.path.getctime)
-            state_dict = torch.load(latest_checkpoint)
-            print('load checkpoint from {}'.format(latest_checkpoint))
 
     # model
     model = load_model(args)
-    if state_dict:
-        model.load_state_dict({k.replace('module.', ''):v for k, v in state_dict['model'].items()})
     model.cuda()
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
@@ -387,17 +370,6 @@ def main(args):
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
     else:
         raise NotImplementedError(sched)
-    if state_dict:
-            # latest_checkpoint = max(checkpoints, key=os.path.getctime)
-            # state_dict = torch.load(latest_checkpoint)
-            # if args.distributed:
-            #     model.load_state_dict(state_dict['model'])
-            # else:
-            #     # model.load_state_dict({k.replace('module.', ''):v for k, v in state_dict['model'].items()})
-            #     model.load_state_dict(state_dict['model']['module'])
-        optimizer.load_state_dict(state_dict['optimizer'])
-        scheduler.load_state_dict(state_dict['scheduler'])
-        epoch = state_dict['epoch']
 
     # output_dir
     if utils.is_master():
