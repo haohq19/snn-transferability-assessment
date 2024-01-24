@@ -1,0 +1,11 @@
+python evaluate.py\
+    --batch_size 60 \
+    --dataset 'n_caltech101' \
+    --root '/home/haohq/datasets/NCaltech101' \
+    --nsteps 8 \
+    --nclasses 101 \
+    --batch_size 64 \
+    --model 'sew_resnet152' \
+    --pretrained_path '/home/haohq/SNN-Trans-Assess-main/output/ncaltech101/sew_resnet152_n_caltech101_b128_lr0.01_T8_CE_adam_mom0.9_step30_gamma0.3_cnfADD_pt_14bdc4366dab07ca/checkpoint/checkpoint_epoch70_valacc14.92.pth'\
+    --connect_f 'ADD' \
+    --device_id 0 \

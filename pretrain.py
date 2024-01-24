@@ -7,7 +7,7 @@ import hashlib
 import torch
 import torch.nn as nn
 import models.spiking_resnet as spiking_resnet, models.sew_resnet as sew_resnet
-import es_imagenet
+import datasets.es_imagenet as es_imagenet
 import utils
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
@@ -381,5 +381,5 @@ if __name__ == '__main__':
 
 
 '''
-python -m torch.distributed.run --nproc_per_node=8 train.py --sync_bn --batch_size 40
+python -m torch.distributed.run --nproc_per_node=8 pretrain.py --sync_bn --batch_size 40
 '''

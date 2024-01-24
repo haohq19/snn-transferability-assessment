@@ -2,14 +2,11 @@ import os
 import argparse
 import numpy as np
 import random
-import glob
-import hashlib
 import torch
 import torch.nn as nn
 import models.spiking_resnet as spiking_resnet, models.sew_resnet as sew_resnet
-import es_imagenet
+import datasets.es_imagenet as es_imagenet
 import utils
-from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from spikingjelly.activation_based import functional
 from spikingjelly.datasets import asl_dvs, cifar10_dvs, dvs128_gesture, n_caltech101, n_mnist
@@ -24,7 +21,7 @@ torch.backends.cudnn.benchmark = False
 np.random.seed(_seed_)
 
 def parser_args():
-    parser = argparse.ArgumentParser(description='pretrain SNN')
+    parser = argparse.ArgumentParser(description='evaluate SNN')
     # data
     parser.add_argument('--dataset', default='', type=str, help='dataset')
     parser.add_argument('--root', default='', type=str, help='path to dataset')
@@ -55,21 +52,20 @@ def load_data(args):
         dataset = cifar10_dvs.CIFAR10DVS(root=args.root, data_type='frame', frames_number=args.nsteps, split_by='time', duration=args.duration)
         train_dataset, val_dataset, test_dataset = split3dataset(0.8, 0.1, dataset, args.nclasses, random_split=False)
     elif args.dataset == 'dvs128_gesture':  # downloaded
-        dataset = dvs128_gesture.DVS128Gesture
-        train_dataset = dataset(root=args.root, train=True, data_type='frame', duration=args.duration)
-        test_dataset = dataset(root=args.root, train=False, data_type='frame', duration=args.duration)
-        train_dataset, val_dataset = split2dataset(0.9, train_dataset, args.nclasses, random_split=True)
+        train_dataset = dvs128_gesture.DVS128Gesture(root=args.root, train=True, data_type='frame', duration=args.duration)
+        test_dataset = dvs128_gesture.DVS128Gesture(root=args.root, train=False, data_type='frame', duration=args.duration)
+        train_dataset, val_dataset = split2dataset(0.9, train_dataset, args.nclasses, random_split=False)
     elif args.dataset == 'n_caltech101':  # downloaded
         dataset = n_caltech101.NCaltech101(root=args.root, data_type='frame', frames_number=args.nsteps, split_by='time', duration=args.duration)
         train_dataset, val_dataset, test_dataset= split3dataset(0.8, 0.1, dataset, args.nclasses, random_split=False)
     elif args.dataset == 'n_mnist':  # downloaded
         train_dataset = n_mnist.NMNIST(root=args.root, train=True, data_type='frame', frames_number=args.nsteps, split_by='time', duration=args.duration)
         test_dataset = n_mnist.NMNIST(root=args.root, train=False, data_type='frame', frames_number=args.nsteps, split_by='time', duration=args.duration)
-        train_dataset, val_dataset = split2dataset(0.9, train_dataset, args.nclasses, random_split=True)
+        train_dataset, val_dataset = split2dataset(0.9, train_dataset, args.nclasses, random_split=False)
     elif args.dataset == 'es_imagenet':  # downloaded
         train_dataset = es_imagenet.ESImageNet(root=args.root, train=True, nsteps=args.nsteps)
         test_dataset = es_imagenet.ESImageNet(root=args.root, train=False, nsteps=args.nsteps)
-        train_dataset, val_dataset = train_dataset.split(0.9, random_split=True)
+        train_dataset, val_dataset = train_dataset.split(0.9, random_split=False)
     else:
         raise NotImplementedError(args.dataset)
     
@@ -82,14 +78,13 @@ def load_data(args):
         val_sampler = torch.utils.data.SequentialSampler(val_dataset)
         test_sampler = torch.utils.data.SequentialSampler(test_dataset)
 
-    return DataLoader(train_dataset, batch_size=args.batch_size, sampler=train_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=True), \
-        DataLoader(val_dataset, batch_size=args.batch_size, sampler=val_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=True), \
+    return DataLoader(train_dataset, batch_size=args.batch_size, sampler=train_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
+        DataLoader(val_dataset, batch_size=args.batch_size, sampler=val_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
         DataLoader(test_dataset, batch_size=args.batch_size, sampler=test_sampler, num_workers=args.nworkers, pin_memory=True)
 
 def load_model(args):
-    # load weights
+    # load pre-trained weights
     pretrained_weights = None
-    # if file does not exist, raise error
     if not os.path.exists(args.pretrained_path):
         raise FileNotFoundError(args.pretrained_path)
     else:
@@ -115,12 +110,11 @@ def load_model(args):
     else:
         raise NotImplementedError(args.model)
     
-    
+    # freeze all parameters
     for param in model.parameters():
         param.requires_grad = False
 
     return model
-
 
 
 def evaluate(
@@ -164,12 +158,12 @@ def evaluate(
         if args.distributed:
             top1_correct, top5_correct, total_loss = utils.global_meters_all_sum(args, top1_correct, top5_correct, total_loss)
         total_loss /= total
-        top1_accuracy = top1_correct / total * 100
-        top5_accuracy = top5_correct / total * 100
+        top1_accuracy = top1_correct / total
+        top5_accuracy = top5_correct / total
         if utils.is_master():    
             process_bar.close()
         print('train_cor@1: {}, train_cor@5: {}, train_total: {}'.format(top1_correct, top5_correct, total))
-        print('train_acc@1: {:.3f}%, train_acc@5: {:.3f}%, train_loss: {:.3f}'.format(top1_accuracy, top5_accuracy, total_loss))
+        print('train_acc@1: {}, train_acc@5: {}, train_loss: {}'.format(top1_accuracy, top5_accuracy, total_loss))
         
     torch.cuda.empty_cache()
     # validation set
@@ -177,6 +171,7 @@ def evaluate(
     top5_correct = 0
     total = len(val_loader.dataset)
     total_loss = 0
+    nsteps_per_epoch = len(val_loader)
     if utils.is_master():
         import tqdm
         process_bar = tqdm.tqdm(total=nsteps_per_epoch)
@@ -200,19 +195,20 @@ def evaluate(
     if args.distributed:
         top1_correct, top5_correct, total_loss = utils.global_meters_all_sum(args, top1_correct, top5_correct, total_loss)
     total_loss /= total
-    top1_accuracy = top1_correct / total * 100
-    top5_accuracy = top5_correct / total * 100
+    top1_accuracy = top1_correct / total
+    top5_accuracy = top5_correct / total
     if utils.is_master():    
             process_bar.close()
 
     print('val_cor@1: {}, val_cor@5: {}, val_total: {}'.format(top1_correct, top5_correct, total))
-    print('val_acc@1: {:.3f}%, val_acc@5: {:.3f}%, val_loss: {:.3f}'.format(top1_accuracy, top5_accuracy, total_loss))
+    print('val_acc@1: {}, val_acc@5: {}, val_loss: {}'.format(top1_accuracy, top5_accuracy, total_loss))
 
     # test set
     top1_correct = 0
     top5_correct = 0
     total = len(test_loader.dataset)
     total_loss = 0
+    nsteps_per_epoch = len(test_loader)
     if utils.is_master():
         import tqdm
         process_bar = tqdm.tqdm(total=nsteps_per_epoch)
@@ -237,10 +233,13 @@ def evaluate(
     if args.distributed:
         top1_correct, top5_correct, total_loss = utils.global_meters_all_sum(args, top1_correct, top5_correct, total_loss)
     total_loss /= total
-    top1_accuracy = top1_correct / total * 100
-    top5_accuracy = top5_correct / total * 100
+    top1_accuracy = top1_correct / total
+    top5_accuracy = top5_correct / total
+    if utils.is_master():    
+            process_bar.close()
+
     print('test_cor@1: {}, test_cor@5: {}, test_total: {}'.format(top1_correct, top5_correct, total))
-    print('test_acc@1: {:.3f}%, test_acc@5: {:.3f}%, test_loss: {:.3f}'.format(top1_accuracy, top5_accuracy, total_loss))
+    print('test_acc@1: {}, test_acc@5: {}, test_loss: {}'.format(top1_accuracy, top5_accuracy, total_loss))
 
 
 def main(args):
@@ -271,8 +270,6 @@ def main(args):
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank])
 
 
-   
-
     evaluate(
         model=model,
         criterion=criterion,
@@ -286,8 +283,3 @@ def main(args):
 if __name__ == '__main__':
     args = parser_args()
     main(args)
-
-
-'''
-python -m torch.distributed.run --nproc_per_node=8 evaluate.py --sync_bn --batch_size 40
-'''
