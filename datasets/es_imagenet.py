@@ -46,7 +46,7 @@ class ESImageNet(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         '''
-        return input data of size (nsteps, in_channels=2, width=224, height=224) and 1-hot label
+        return input data of size (nsteps, in_channels=2, width=224, height=224) and label
         '''
         if self.train:
             line = linecache.getline(self.train_label_path, idx + 1)

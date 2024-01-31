@@ -1,3 +1,5 @@
+# # assess transferability of SNN on static datasets
+
 import torch
 import numpy as np
 from functions.logME import logME

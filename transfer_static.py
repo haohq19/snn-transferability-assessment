@@ -450,7 +450,7 @@ def main(args):
     model = load_model(args)
     model.cuda()
     
-     # data
+    # data
     cache_dir = os.path.join(args.output_dir, args.dataset)
     cache_dir = os.path.join(cache_dir, args.model)
     train_loader, val_loader, test_loader = None, None, None
@@ -471,7 +471,6 @@ def main(args):
     # run
     epoch = 0
     optim = args.optim
-    sched = args.sched
     params = filter(lambda p: p.requires_grad, linear_probe.parameters())
     if optim == 'SGD':
         optimizer = torch.optim.SGD(params, lr=args.lr,  weight_decay=args.weight_decay)
@@ -479,12 +478,6 @@ def main(args):
         optimizer = torch.optim.Adam(params, lr=args.lr, weight_decay=args.weight_decay)
     else:
         raise NotImplementedError(optim)
-    
-    if sched == 'StepLR':
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
-    else:
-        raise NotImplementedError(sched)
-   
 
     best_model = train(
         model=linear_probe,

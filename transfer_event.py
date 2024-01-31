@@ -266,7 +266,6 @@ def cache(
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, num_workers=args.nworkers, pin_memory=True, drop_last=False)
     return train_loader, val_loader, test_loader
 
-
 def train(
     model: nn.Module,
     criterion: nn.Module,
@@ -451,57 +450,52 @@ def test(
 
 
 def main(args):
-    # init distributed training
-    utils.init_dist(args)
     print(args)
-    
-    # device
-    if args.distributed:
-        torch.cuda.set_device(args.local_rank)
-    else:
-        torch.cuda.set_device(args.device_id)
-
-     # data
-    train_loader, val_loader, test_loader = load_data(args)
+    torch.cuda.set_device(args.device_id)
 
     # criterion
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.MSELoss()
     args.criterion = criterion.__class__.__name__
     
-    # resume
+    # output
     output_dir = _get_output_dir(args)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+    if not os.path.exists(os.path.join(output_dir, 'checkpoint')):
+        os.makedirs(os.path.join(output_dir, 'checkpoint'))
 
     # model
     model = load_model(args)
     model.cuda()
-    if args.distributed and args.sync_bn:
-        model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
-    if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank])
     
+    # data
+    cache_dir = os.path.join(args.output_dir, args.dataset)
+    cache_dir = os.path.join(cache_dir, args.model)
+    train_loader, val_loader, test_loader = None, None, None
+    if not os.path.exists(os.path.join(cache_dir, 'cache')):
+        train_loader, val_loader, test_loader = load_data(args)
+    train_loader, val_loader, test_loader = cache(
+        model=model,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        test_loader=test_loader,
+        cache_dir=cache_dir,
+    )
+
+    # linear_probe
+    linear_probe = LinearProbe(args.num_dims, args.nclasses)
+    linear_probe.cuda()
+
     # run
     epoch = 0
     optim = args.optim
-    sched = args.sched
-    params = filter(lambda p: p.requires_grad, model.parameters())
+    params = filter(lambda p: p.requires_grad, linear_probe.parameters())
     if optim == 'SGD':
         optimizer = torch.optim.SGD(params, lr=args.lr,  weight_decay=args.weight_decay)
     elif optim == 'Adam':
         optimizer = torch.optim.Adam(params, lr=args.lr, weight_decay=args.weight_decay)
     else:
         raise NotImplementedError(optim)
-    if sched == 'StepLR':
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=args.step_size, gamma=args.gamma)
-    else:
-        raise NotImplementedError(sched)
-
-    # output_dir
-    if utils.is_master():
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        if not os.path.exists(os.path.join(output_dir, 'checkpoint')):
-            os.makedirs(os.path.join(output_dir, 'checkpoint'))
-   
 
     best_model = train(
         model=model,

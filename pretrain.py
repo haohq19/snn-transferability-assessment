@@ -40,7 +40,7 @@ def parser_args():
     parser.add_argument('--nworkers', default=16, type=int, help='number of workers')
     parser.add_argument('--lr', default=0.01, type=float, help='learning rate')
     parser.add_argument('--optim', default='Adam', type=str, help='optimizer')
-    parser.add_argument('--output_dir', default='output/pretrain/', help='path where to save')
+    parser.add_argument('--output_dir', default='outputs/pretrain/', help='path where to save')
     parser.add_argument('--save_freq', default=10, type=int, help='save frequency')
     parser.add_argument('--sched', default='StepLR', type=str, help='scheduler')
     parser.add_argument('--step_size', default=25, type=int, help='step size for StepLR scheduler')
@@ -260,12 +260,14 @@ def main(args):
     # model
     model = load_model(args)
     if state_dict:
-        model.load_state_dict({k.replace('module.', ''):v for k, v in state_dict['model'].items()})
+        model.load_state_dict({k.replace('module.', ''):v for k, v in state_dict['model'].items()}, map_location='cpu')
     model.cuda()
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)
     if args.distributed:
-        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank])
+        print('before parallel')
+        model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank], output_device=args.local_rank)
+        print('after parallel')
     
     # run
     epoch = 0
@@ -273,9 +275,9 @@ def main(args):
     sched = args.sched
     params = filter(lambda p: p.requires_grad, model.parameters())
     if optim == 'SGD':
-        optimizer = torch.optim.SGD(params, lr=args.lr, momentum=args.momentum, weight_decay=args.weight_decay)
+        optimizer = torch.optim.SGD(params, lr=args.lr)
     elif optim == 'Adam':
-        optimizer = torch.optim.Adam(params, lr=args.lr, weight_decay=args.weight_decay)
+        optimizer = torch.optim.Adam(params, lr=args.lr)
     else:
         raise NotImplementedError(optim)
     if sched == 'StepLR':

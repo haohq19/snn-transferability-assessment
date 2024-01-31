@@ -1,4 +1,4 @@
-python -m torch.distributed.run --nproc_per_node=8 pretrain.py\
+torchrun --nproc_per_node=8 pretrain.py\
     --dataset 'es_imagenet' \
     --root '/home/haohq/datasets/ESImageNet-old' \
     --nsteps 8 \

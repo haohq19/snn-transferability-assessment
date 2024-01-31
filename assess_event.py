@@ -1,3 +1,5 @@
+# assess transferability of SNN on event-based datasets
+
 import torch
 import numpy as np
 from functions.logME import logME
