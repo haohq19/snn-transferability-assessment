@@ -153,20 +153,16 @@ class SEWResNet(nn.Module):
         self.groups = groups
         self.base_width = width_per_group
 
-        # self.conv1 = nn.Conv2d(3, self.inplanes, kernel_size=7, stride=2, padding=3,
-        #                        bias=False)
-        # self.bn1 = norm_layer(self.inplanes)
+        self.conv1 = nn.Conv2d(3, self.in_channels, kernel_size=7, stride=2, padding=3,
+                               bias=False)
+        self.bn1 = norm_layer(self.in_channels)
 
-        self.conv = nn.Sequential(
-            layer.SeqToANNContainer(
-                nn.Conv2d(2, self.in_channels, kernel_size=7, stride=2, padding=3, bias=False),
-                self._norm_layer(self.in_channels),
-            ),
-        )
-        self.avgpool1 = layer.SeqToANNContainer(
-            nn.AvgPool2d(kernel_size=3, stride=2, padding=1)
-            )
         self.sn1 = neuron.IFNode(step_mode='m', detach_reset=True)
+
+        self.maxpool = layer.SeqToANNContainer(
+            nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+            )
+        
 
         self.layer1 = self._make_layer(block, 64, layers[0], connect_f=connect_f)
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2,
@@ -175,12 +171,15 @@ class SEWResNet(nn.Module):
                                        dilate=replace_stride_with_dilation[1], connect_f=connect_f)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2,
                                        dilate=replace_stride_with_dilation[2], connect_f=connect_f)
-        self.avgpool2 = layer.SeqToANNContainer(nn.AdaptiveAvgPool2d((1, 1)))
-        # self.fc = nn.Linear(512 * block.expansion, num_classes)
+        self.avgpool = layer.SeqToANNContainer(nn.AdaptiveAvgPool2d((1, 1)))
+        
         self.fc = layer.SeqToANNContainer(
             nn.Linear(512 * block.expansion, num_classes)
-            )
+        )
+        self.sn2 = neuron.IFNode(step_mode='m', detach_reset=True)
 
+
+        
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
                 nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
@@ -220,19 +219,22 @@ class SEWResNet(nn.Module):
     
 
     def _forward_impl(self, x):
-        x = self.conv(x)
-        x = self.avgpool1(x)
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x.unsqueeze_(0)
+        x = x.repeat(self.T, 1, 1, 1, 1)
         x = self.sn1(x)
+        x = self.maxpool(x)
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
 
-        x = self.avgpool2(x)
+        x = self.avgpool(x)
         x = torch.flatten(x, 2)
-        self.feature = x
-        x = self.fc(x)
-        return x
+        self.feature = x  # feature.shape = (T, N, D)
+        x = self.sn2(self.fc(x))
+        return x.mean(dim=0)  # x.shape = (N, C)
 
     def forward(self, x):
         return self._forward_impl(x)

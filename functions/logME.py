@@ -45,6 +45,7 @@ def logME(f: np.ndarray, y: np.ndarray):
             sigma_full_size = np.pad(sigma, ((0, D - N), (0, 0)), 'constant')
 
         evidences = []
+        iters = []
         num_dim = int(y.max() + 1)
         for i in range(num_dim):
             y_ = (y == i).astype(np.float64)
@@ -54,7 +55,9 @@ def logME(f: np.ndarray, y: np.ndarray):
             res_x2 = (y_ ** 2).sum() - x2.sum()  # if k < N, we compute sum of xi for 0 singular values directly
 
             alpha, beta = 1.0, 1.0
-            for _ in range(11):
+
+            iter = 0
+            while True:
                 t = alpha / beta
                 gamma = (sigma / (sigma + t)).sum()
                 m2 = (sigma * x2 / ((t + sigma) ** 2)).sum()
@@ -62,15 +65,10 @@ def logME(f: np.ndarray, y: np.ndarray):
                 alpha = gamma / (m2 + 1e-5)
                 beta = (N - gamma) / (res2 + 1e-5)
                 t_ = alpha / beta
-                evidence = D / 2.0 * np.log(alpha) \
-                           + N / 2.0 * np.log(beta) \
-                           - 0.5 * np.sum(np.log(alpha + beta * sigma_full_size)) \
-                           - beta / 2.0 * res2 \
-                           - alpha / 2.0 * m2 \
-                           - N / 2.0 * np.log(2 * np.pi)
-                evidence /= N
-                if abs(t_ - t) / t <= 1e-3:  # abs(t_ - t) <= 1e-5 or abs(1 / t_ - 1 / t) <= 1e-5:
+                if abs(t_ - t) / t <= 1e-3 or iter > 100:  # abs(t_ - t) <= 1e-5 or abs(1 / t_ - 1 / t) <= 1e-5:
                     break
+                iter += 1
+            iters.append(iter)
             evidence = D / 2.0 * np.log(alpha) \
                        + N / 2.0 * np.log(beta) \
                        - 0.5 * np.sum(np.log(alpha + beta * sigma_full_size)) \
@@ -81,5 +79,5 @@ def logME(f: np.ndarray, y: np.ndarray):
             m = 1.0 / (t + sigma) * s * x
             m = (vh.T @ m).reshape(-1)
             evidences.append(evidence)
-        return np.mean(evidences)
+        return np.mean(evidences), np.mean(iters)
 

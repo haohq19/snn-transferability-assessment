@@ -45,11 +45,12 @@ def ApproxME(f: np.ndarray, y: np.ndarray):
             sigma_full_size = np.pad(sigma, ((0, D - N), (0, 0)), 'constant')
 
     evidences = []
+    iters = []
     for i in range(num_dim):
 
         y_ = (y == i).astype(np.float64)
         y_ = y_.reshape(-1, 1)
-        z = u.T @ y_  # x has shape [k, 1], but actually x should have shape [N, 1]
+        z = u.T @ y_  # z has shape [k, 1], but actually z should have shape [N, 1]
         z2 = z ** 2
         delta = (y_ ** 2).sum() - z2.sum()  # if k < N, we compute sum of xi for 0 singular values directly
 
@@ -59,6 +60,22 @@ def ApproxME(f: np.ndarray, y: np.ndarray):
         res2 = (z2 / ((1 + sigma / t) ** 2)).sum() + delta
         beta = N / (res2 + t * m2)
         alpha = t * beta
+        
+        iter = 0
+        while True:
+            t = alpha / beta
+            gamma = (sigma / (sigma + t)).sum()
+            m2 = (sigma * z2 / ((t + sigma) ** 2)).sum()
+            res2 = (z2 / ((1 + sigma / t) ** 2)).sum() + delta
+            alpha = gamma / (m2 + 1e-5)
+            beta = (N - gamma) / (res2 + 1e-5)
+            t_ = alpha / beta
+            if abs(t_ - t) / t <= 1e-3 or iter > 10000:
+                break
+            iter += 1
+        
+        iters.append(iter)
+
         evidence = D / 2.0 * np.log(alpha) \
                  + N / 2.0 * np.log(beta) \
                  - 0.5 * np.sum(np.log(alpha + beta * sigma_full_size)) \
@@ -67,4 +84,4 @@ def ApproxME(f: np.ndarray, y: np.ndarray):
                  - N / 2.0 * np.log(2 * np.pi)
         evidences.append(evidence / N)
 
-    return np.mean(evidences)
+    return np.mean(evidences), np.mean(iters)
