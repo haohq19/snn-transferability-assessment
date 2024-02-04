@@ -48,6 +48,7 @@ def parser_args():
     parser.add_argument('--resume', help='resume from checkpoint', action='store_true')
     # dist
     parser.add_argument('--world-size', default=8, type=int, help='number of distributed processes')
+    parser.add_argument('--backend', default='nccl', type=str, help='backend for distributed training')
     parser.add_argument('--dist-url', default='env://', help='url used to set up distributed training')
     parser.add_argument("--sync_bn", help="use sync batch normalization", action="store_true")
     return parser.parse_args()
@@ -254,13 +255,13 @@ def main(args):
         checkpoints = glob.glob(os.path.join(output_dir, 'checkpoint/*.pth'))
         if checkpoints:
             latest_checkpoint = max(checkpoints, key=os.path.getctime)
-            state_dict = torch.load(latest_checkpoint)
+            state_dict = torch.load(latest_checkpoint, map_location='cpu')
             print('load checkpoint from {}'.format(latest_checkpoint))
 
     # model
     model = load_model(args)
     if state_dict:
-        model.load_state_dict({k.replace('module.', ''):v for k, v in state_dict['model'].items()}, map_location='cpu')
+        model.load_state_dict({k.replace('module.', ''):v for k, v in state_dict['model'].items()})
     model.cuda()
     if args.distributed and args.sync_bn:
         model = torch.nn.SyncBatchNorm.convert_sync_batchnorm(model)

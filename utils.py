@@ -111,10 +111,9 @@ def init_dist(args):
         return
 
     torch.cuda.set_device(args.local_rank)
-    args.backend = 'nccl'
-    print('| distributed init (rank {}): {}'.format(args.rank, args.dist_url), flush=True)
+    print('| distributed init (rank {}, local rank {}): {}'.format(args.rank, args.local_rank, args.dist_url), flush=True)
     dist.init_process_group(backend=args.backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
-    enable_print(args.rank == 0)
+    enable_print(is_master())
     
     
 def enable_print(is_master):
