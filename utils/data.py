@@ -2,6 +2,8 @@ import math
 import torch
 import numpy as np
 from torch.utils.data import DataLoader
+from torchvision import transforms
+from torchvision.datasets import CIFAR10, CIFAR100, Caltech101, Caltech256, DTD, Food101
 from spikingjelly.datasets import cifar10_dvs, dvs128_gesture, n_caltech101, n_mnist
 
 # convert scaler to 1-hot vector
@@ -127,3 +129,43 @@ def get_event_data_loader(args):
     return DataLoader(train_dataset, batch_size=32, sampler=train_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
         DataLoader(val_dataset, batch_size=32, sampler=val_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
         DataLoader(test_dataset, batch_size=32, sampler=test_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False)
+
+
+def get_static_data_loader(args):
+
+    _transform = transforms.Compose([
+    transforms.Resize(256),
+    transforms.CenterCrop(224),
+    transforms.ToTensor(),
+    transforms.Normalize(
+        mean=[0.485, 0.456, 0.406], 
+        std=[0.229, 0.224, 0.225]
+    )
+])
+    
+    if args.dataset == 'cifar10':   # downloaded
+        train_dataset = CIFAR10(train=True, root='/home/haohq/datasets/CIFAR10', download=True, transform=_transform)
+        test_dataset = CIFAR10(train=False, root='/home/haohq/datasets/CIFAR10', download=True, transform=_transform)
+        train_dataset, val_dataset = split2dataset(0.9, train_dataset, num_classes=args.nclasses, random_split=False)
+    elif args.dataset == 'cifar100':  # downloaded
+        train_dataset = CIFAR100(train=True, root='/home/haohq/datasets/CIFAR100', download=True, transform=_transform)
+        test_dataset = CIFAR100(train=False, root='/home/haohq/datasets/CIFAR100', download=True, transform=_transform)
+        train_dataset, val_dataset = split2dataset(0.9, train_dataset, num_classes=args.nclasses, random_split=False)
+    elif args.dataset == 'dtd':  # downloaded
+        train_dataset = DTD(split='train', root='/home/haohq/datasets/DTD', download=True, transform=_transform)
+        val_dataset = DTD(split='val', root='/home/haohq/datasets/DTD', download=True, transform=_transform)
+        test_dataset = DTD(split='test', root='/home/haohq/datasets/DTD', download=True, transform=_transform)
+    elif args.dataset == 'food101':  # downloaded
+        train_dataset = Food101(split='train', root='/home/haohq/datasets/Food101', download=True, transform=_transform)
+        test_dataset = Food101(split='test', root='/home/haohq/datasets/Food101', download=True, transform=_transform)
+        train_dataset, val_dataset = split2dataset(0.9, train_dataset, num_classes=args.nclasses, random_split=False)
+    else:
+        raise NotImplementedError(args.dataset)
+    
+    train_sampler = torch.utils.data.RandomSampler(train_dataset)
+    val_sampler = torch.utils.data.SequentialSampler(val_dataset)
+    test_sampler = torch.utils.data.SequentialSampler(test_dataset)
+
+    return DataLoader(train_dataset, batch_size=128, sampler=train_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
+        DataLoader(val_dataset, batch_size=128, sampler=val_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
+        DataLoader(test_dataset, batch_size=128, sampler=test_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False)

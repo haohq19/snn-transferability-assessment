@@ -23,6 +23,7 @@ torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 np.random.seed(_seed_)
 
+
 def parser_args():
     parser = argparse.ArgumentParser(description='transfer SNN on event-based datasets')
     # data
@@ -31,14 +32,11 @@ def parser_args():
     parser.add_argument('--num_classes', default=11, type=int, help='number of classes')
     parser.add_argument('--batch_size', default=1024, type=int, help='batch size')
     # model
-    # parser.add_argument('--model', default='sew_resnet18', type=str, help='model type')
     parser.add_argument('--connect_f', default='ADD', type=str, help='spike-element-wise connect function')
     # run
     parser.add_argument('--device_id', default=0, type=int, help='GPU id to use.')
     parser.add_argument('--nepochs', default=100, type=int, help='number of epochs')
     parser.add_argument('--nworkers', default=8, type=int, help='number of workers')
-    # parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
-    # parser.add_argument('--weight_decay', default=0, type=float, help='weight decay')
     parser.add_argument('--pt_dir', default='weights', help='path to pretrained weights')
     parser.add_argument('--output_dir', default='outputs/transfer', help='path where to save')
     return parser.parse_args()
@@ -135,14 +133,14 @@ def main(args):
     )
     train_loader, valid_loader, test_loader = get_data_loader_from_cached_representations(args)
 
-    # linear_probe
+    # linear probe
     args.num_dims = _get_num_dims(args)
     linear_probe = LinearProbe(args.num_dims, args.num_classes)
     linear_probe.cuda()
 
     # run
     params = filter(lambda p: p.requires_grad, linear_probe.parameters())
-    optimizer = torch.optim.Adam(params, lr=args.lr,  weight_decay=args.weight_decay)
+    optimizer = torch.optim.Adam(params, lr=args.lr, weight_decay=args.weight_decay)
     
     # print and save args
     print(args)
