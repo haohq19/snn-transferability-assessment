@@ -1,8 +1,8 @@
-import os
 import math
 import torch
 import numpy as np
-import torch.distributed as dist
+from torch.utils.data import DataLoader
+from spikingjelly.datasets import cifar10_dvs, dvs128_gesture, n_caltech101, n_mnist
 
 # convert scaler to 1-hot vector
 def to_onehot(y, nclasses):
@@ -88,68 +88,42 @@ def split3dataset(train_ratio: float, val_ratio: float, origin_dataset: torch.ut
     return torch.utils.data.Subset(origin_dataset, train_idx), torch.utils.data.Subset(origin_dataset, val_idx), torch.utils.data.Subset(origin_dataset, test_idx)
 
 
-def is_master():
-    if not dist.is_available():  # if not distributed mode, return True
-        return True
-    elif not dist.is_initialized():  # if distributed mode but not initialized, return True
-        return True
-    else:  # if distributed mode, return True only when rank is 0
-        return dist.get_rank() == 0
+def get_event_data_loader(args):
 
-def save_on_master(*args, **kwargs):
-    if is_master():
-        torch.save(*args, **kwargs)
-        
-def init_dist(args):
-    if 'RANK' in os.environ and 'WORLD_SIZE' in os.environ:  # distributed mode
-        args.rank = int(os.environ["RANK"])
-        args.world_size = int(os.environ['WORLD_SIZE'])
-        args.local_rank = int(os.environ['LOCAL_RANK'])
-        args.distributed = True
-    else:  # not distributed mode
-        args.distributed = False
-        return
+    if args.dataset == 'cifar10_dvs':  
+        # downloaded
+        # root = '/home/haohq/datasets/CIFAR10DVS'
+        dataset = cifar10_dvs.CIFAR10DVS(root='/home/haohq/datasets/CIFAR10DVS', data_type='frame', frames_number=args.nsteps, split_by='time')
+        train_dataset, val_dataset, test_dataset = split3dataset(0.8, 0.1, dataset, args.num_classes, random_split=False)
 
-    torch.cuda.set_device(args.local_rank)
-    print('| distributed init (rank {}, local rank {}): {}'.format(args.rank, args.local_rank, args.dist_url), flush=True)
-    dist.init_process_group(backend=args.backend, init_method=args.dist_url, world_size=args.world_size, rank=args.rank)
-    enable_print(is_master())
+    elif args.dataset == 'dvs128_gesture':  
+        # downloaded
+        # root = '/home/haohq/datasets/DVS128Gesture'
+        dataset = dvs128_gesture.DVS128Gesture
+        train_dataset = dataset(root='/home/haohq/datasets/DVS128Gesture', train=True, data_type='frame', frames_number=args.nsteps, split_by='time')
+        test_dataset = dataset(root='/home/haohq/datasets/DVS128Gesture', train=False, data_type='frame', frames_number=args.nsteps, split_by='time')
+        train_dataset, val_dataset = split2dataset(0.9, train_dataset, args.num_classes, random_split=False)
+
+    elif args.dataset == 'n_caltech101':  
+        # downloaded
+        # root = '/home/haohq/datasets/NCaltech101'
+        dataset = n_caltech101.NCaltech101(root='/home/haohq/datasets/NCaltech101', data_type='frame', frames_number=args.nsteps, split_by='time')
+        train_dataset, val_dataset, test_dataset= split3dataset(0.8, 0.1, dataset, args.num_classes, random_split=False)
+
+    elif args.dataset == 'n_mnist':  
+        # downloaded
+        # root = '/home/haohq/datasets/NMNIST'
+        train_dataset = n_mnist.NMNIST(root='/home/haohq/datasets/NMNIST', train=True, data_type='frame', frames_number=args.nsteps, split_by='time')
+        test_dataset = n_mnist.NMNIST(root='/home/haohq/datasets/NMNIST', train=False, data_type='frame', frames_number=args.nsteps, split_by='time')
+        train_dataset, val_dataset = split2dataset(0.9, train_dataset, args.num_classes, random_split=False)
+
+    else:
+        raise NotImplementedError(args.dataset)
     
-    
-def enable_print(is_master):
-    '''
-    This function disables printing when not in master process
-    '''
-    import builtins as __builtin__
-    builtin_print = __builtin__.print
+    train_sampler = torch.utils.data.RandomSampler(train_dataset)
+    val_sampler = torch.utils.data.SequentialSampler(val_dataset)
+    test_sampler = torch.utils.data.SequentialSampler(test_dataset)
 
-    def print(*args, **kwargs):
-        force = kwargs.pop('force', False)
-        if is_master or force:
-            builtin_print(*args, **kwargs)
-
-    __builtin__.print = print
-
-
-def global_meters_all_avg(args, *meters):
-    '''
-    meters: scalar values of loss/accuracy calculated in each rank
-    '''
-    tensors = [torch.tensor(meter, device=args.local_rank, dtype=torch.float32) for meter in meters]
-    for tensor in tensors:
-        # each item of `tensors` is all-reduced starting from index 0 (in-place)
-        dist.all_reduce(tensor, op=dist.ReduceOp.SUM)
-
-    return [(tensor / args.world_size).item() for tensor in tensors]
-
-
-def global_meters_all_sum(args, *meters):
-    '''
-    meters: scalar values calculated in each rank
-    '''
-    tensors = [torch.tensor(meter, device=args.local_rank, dtype=torch.float32) for meter in meters]
-    for tensor in tensors:
-        # each item of `tensors` is all-reduced starting from index 0 (in-place)
-        dist.all_reduce(tensor, op=dist.ReduceOp.SUM)
-    
-    return [tensor.item() for tensor in tensors]
+    return DataLoader(train_dataset, batch_size=128, sampler=train_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
+        DataLoader(val_dataset, batch_size=128, sampler=val_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
+        DataLoader(test_dataset, batch_size=128, sampler=test_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False)

@@ -10,7 +10,7 @@ import torch.nn as nn
 import models.spiking_resnet_event as spiking_resnet
 import models.sew_resnet_event as sew_resnet
 import datasets.es_imagenet as es_imagenet
-import utils
+import utils.data as utils
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from spikingjelly.activation_based import functional

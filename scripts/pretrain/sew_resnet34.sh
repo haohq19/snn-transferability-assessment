@@ -1,4 +1,4 @@
-python -m torch.distributed.run --nproc_per_node=8 pretrain.py\
+torchrun --nproc_per_node=4 pretrain.py\
     --dataset 'es_imagenet' \
     --root '/home/haohq/datasets/ESImageNet-old' \
     --nsteps 8 \
@@ -15,4 +15,5 @@ python -m torch.distributed.run --nproc_per_node=8 pretrain.py\
     --sched 'StepLR' \
     --step_size 25 \
     --gamma 0.3 \
+    --backend 'gloo' \
     --sync_bn

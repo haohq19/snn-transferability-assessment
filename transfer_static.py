@@ -9,14 +9,14 @@ import torch
 import torch.nn as nn
 import models.spiking_resnet_static as spiking_resnet
 import models.sew_resnet_static as sew_resnet
-import utils
+import utils.utils as utils
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from spikingjelly.activation_based import functional
 from spikingjelly.activation_based import neuron, layer
 from torchvision.datasets import CIFAR10, CIFAR100, Caltech101, Caltech256, DTD, Food101
 from torch.utils.data import TensorDataset
-from utils import split2dataset, split3dataset
+from utils.utils import split2dataset, split3dataset
 
 _seed_ = 2020
 random.seed(2020)
