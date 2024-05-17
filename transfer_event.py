@@ -2,6 +2,7 @@
 
 import os
 import argparse
+import csv
 import numpy as np
 import random
 import yaml
@@ -14,8 +15,8 @@ from utils.data import get_event_data_loader
 from engines.transfer import cache_representations, get_data_loader_from_cached_representations, train, test
 
 
-_seed_ = 2020
-random.seed(2020)
+_seed_ = 2024
+random.seed(2024)
 torch.manual_seed(_seed_)
 torch.cuda.manual_seed_all(_seed_)
 torch.backends.cudnn.deterministic = True
@@ -30,14 +31,14 @@ def parser_args():
     parser.add_argument('--num_classes', default=11, type=int, help='number of classes')
     parser.add_argument('--batch_size', default=1024, type=int, help='batch size')
     # model
-    parser.add_argument('--model', default='sew_resnet18', type=str, help='model type')
+    # parser.add_argument('--model', default='sew_resnet18', type=str, help='model type')
     parser.add_argument('--connect_f', default='ADD', type=str, help='spike-element-wise connect function')
     # run
     parser.add_argument('--device_id', default=0, type=int, help='GPU id to use.')
     parser.add_argument('--nepochs', default=100, type=int, help='number of epochs')
-    parser.add_argument('--nworkers', default=16, type=int, help='number of workers')
-    parser.add_argument('--lr', default=0.01, type=float, help='learning rate')
-    parser.add_argument('--weight_decay', default=1e-3, type=float, help='weight decay')
+    parser.add_argument('--nworkers', default=8, type=int, help='number of workers')
+    # parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
+    # parser.add_argument('--weight_decay', default=0, type=float, help='weight decay')
     parser.add_argument('--pt_dir', default='weights', help='path to pretrained weights')
     parser.add_argument('--output_dir', default='outputs/transfer', help='path where to save')
     return parser.parse_args()
@@ -140,9 +141,8 @@ def main(args):
     linear_probe.cuda()
 
     # run
-    epoch = 0
     params = filter(lambda p: p.requires_grad, linear_probe.parameters())
-    optimizer = torch.optim.SGD(params, lr=args.lr,  weight_decay=args.weight_decay)
+    optimizer = torch.optim.Adam(params, lr=args.lr,  weight_decay=args.weight_decay)
     
     # print and save args
     print(args)
@@ -150,7 +150,7 @@ def main(args):
         yaml.dump(vars(args), f, default_flow_style=False)
 
 
-    best_model = train(
+    best_model, best_valid_acc = train(
         model=linear_probe,
         criterion=criterion,
         optimizer=optimizer,
@@ -158,20 +158,34 @@ def main(args):
         valid_loader=valid_loader,
         num_classes=args.num_classes,
         nepochs=args.nepochs,
-        epoch=epoch,
         output_dir=output_dir,
     )
 
-    test(
+    test_acc = test(
         model=best_model,
         test_loader=test_loader,
     )
+
+    # save results
+    result_path = os.path.join(args.output_dir, args.dataset, 'results.csv')  # output_dir/dataset/results.csv
+    with open(result_path, 'a') as f:
+        writer = csv.writer(f)
+        data = [[args.model, args.lr, args.weight_decay, best_valid_acc, test_acc],]
+        writer.writerows(data)
     
 
 if __name__ == '__main__':
+    models = ['sew_resnet152', 'sew_resnet101', 'sew_resnet50', 'sew_resnet34', 'sew_resnet18', 'spiking_resnet50', 'spiking_resnet34', 'spiking_resnet18']
+    learning_rates = [1e-2, 3e-3, 1e-3, 3e-4, 1e-4]
+    weight_decays = [1e-5, 3e-6, 1e-6, 3e-7, 1e-7]
     args = parser_args()
-    main(args)
-
+    for model in models:
+        for lr in learning_rates:
+            for weight_decay in weight_decays:
+                args.model = model
+                args.lr = lr
+                args.weight_decay = weight_decay
+                main(args)
 
 '''
 python transfer_event.py

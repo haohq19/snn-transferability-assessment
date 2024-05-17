@@ -124,6 +124,6 @@ def get_event_data_loader(args):
     val_sampler = torch.utils.data.SequentialSampler(val_dataset)
     test_sampler = torch.utils.data.SequentialSampler(test_dataset)
 
-    return DataLoader(train_dataset, batch_size=128, sampler=train_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
-        DataLoader(val_dataset, batch_size=128, sampler=val_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
-        DataLoader(test_dataset, batch_size=128, sampler=test_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False)
+    return DataLoader(train_dataset, batch_size=32, sampler=train_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
+        DataLoader(val_dataset, batch_size=32, sampler=val_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
+        DataLoader(test_dataset, batch_size=32, sampler=test_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False)
