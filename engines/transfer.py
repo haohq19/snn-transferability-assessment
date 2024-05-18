@@ -158,9 +158,10 @@ def train(
     tb_writer = SummaryWriter(output_dir + '/log')
     print('Save logs to [{}]'.format(output_dir + '/log'))
 
-    # train 
+    # best model
     best_model = None
     best_acc = 0
+    best_acc_epoch = 0
 
     for epoch in range(nepochs):
         print('Epoch [{}/{}]'.format(epoch+1, nepochs))
@@ -257,18 +258,21 @@ def train(
             )
         )
 
-        # save best model
+        # best model info
         if top1_accuracy >= best_acc:
             best_acc = top1_accuracy
             best_model = model
-            checkpoint = {
-                'model': best_model.state_dict(),
-                'optimizer': optimizer.state_dict(),
-            }
-            save_name = 'checkpoints/best_{}.pth'.format(epoch)
-            torch.save(checkpoint, os.path.join(output_dir, save_name))
-            print('Save best model to [{}]'.format(output_dir))
-    print('best_valid_acc@1: {}'.format(best_acc))
+            best_acc_epoch = epoch
+    
+    # save best model
+    checkpoint = {
+        'model': best_model.state_dict(),
+    }
+    save_name = 'checkpoints/best_{}_{}.pth'.format(best_acc_epoch, best_acc)
+    torch.save(checkpoint, os.path.join(output_dir, save_name))
+    print('Save best model to [{}]'.format(output_dir))
+
+    print('Best valid acc@1: {}'.format(best_acc))
     return best_model, best_acc
 
 

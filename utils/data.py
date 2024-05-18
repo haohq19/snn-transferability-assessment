@@ -126,9 +126,9 @@ def get_event_data_loader(args):
     val_sampler = torch.utils.data.SequentialSampler(val_dataset)
     test_sampler = torch.utils.data.SequentialSampler(test_dataset)
 
-    return DataLoader(train_dataset, batch_size=32, sampler=train_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
-        DataLoader(val_dataset, batch_size=32, sampler=val_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
-        DataLoader(test_dataset, batch_size=32, sampler=test_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False)
+    return DataLoader(train_dataset, batch_size=128, sampler=train_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
+        DataLoader(val_dataset, batch_size=128, sampler=val_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False), \
+        DataLoader(test_dataset, batch_size=128, sampler=test_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False)
 
 
 def get_static_data_loader(args):
@@ -146,11 +146,11 @@ def get_static_data_loader(args):
     if args.dataset == 'cifar10':   # downloaded
         train_dataset = CIFAR10(train=True, root='/home/haohq/datasets/CIFAR10', download=True, transform=_transform)
         test_dataset = CIFAR10(train=False, root='/home/haohq/datasets/CIFAR10', download=True, transform=_transform)
-        train_dataset, val_dataset = split2dataset(0.9, train_dataset, num_classes=args.nclasses, random_split=False)
+        train_dataset, val_dataset = split2dataset(0.9, train_dataset, num_classes=args.num_classes, random_split=False)
     elif args.dataset == 'cifar100':  # downloaded
         train_dataset = CIFAR100(train=True, root='/home/haohq/datasets/CIFAR100', download=True, transform=_transform)
         test_dataset = CIFAR100(train=False, root='/home/haohq/datasets/CIFAR100', download=True, transform=_transform)
-        train_dataset, val_dataset = split2dataset(0.9, train_dataset, num_classes=args.nclasses, random_split=False)
+        train_dataset, val_dataset = split2dataset(0.9, train_dataset, num_classes=args.num_classes, random_split=False)
     elif args.dataset == 'dtd':  # downloaded
         train_dataset = DTD(split='train', root='/home/haohq/datasets/DTD', download=True, transform=_transform)
         val_dataset = DTD(split='val', root='/home/haohq/datasets/DTD', download=True, transform=_transform)
@@ -158,7 +158,7 @@ def get_static_data_loader(args):
     elif args.dataset == 'food101':  # downloaded
         train_dataset = Food101(split='train', root='/home/haohq/datasets/Food101', download=True, transform=_transform)
         test_dataset = Food101(split='test', root='/home/haohq/datasets/Food101', download=True, transform=_transform)
-        train_dataset, val_dataset = split2dataset(0.9, train_dataset, num_classes=args.nclasses, random_split=False)
+        train_dataset, val_dataset = split2dataset(0.9, train_dataset, num_classes=args.num_classes, random_split=False)
     else:
         raise NotImplementedError(args.dataset)
     

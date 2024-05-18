@@ -79,11 +79,11 @@ def assess_all(model, dataloader):
 def assess_all_with_cache(cache_dir):
     # assess NCE, LEEP, logME with cached features and outputs
     # return score of NCE, LEEP, logME
-    feature_maps = np.load(cache_dir + '/train_features.npy')  # (N, T, D)
-    feature_maps = feature_maps.mean(axis=1)  # (N, D)
-    labels = np.load(cache_dir + '/train_labels.npy')  # (N,)
-    pseudo_logits = np.load(cache_dir + '/train_logits.npy')  # (N, C)
-    pseudo_labels = np.argmax(pseudo_logits, axis=1)  # (N,)
+    feature_maps = np.load(cache_dir + '/train_features.npy')   # (N, T, D)
+    feature_maps = feature_maps.mean(axis=1)                    # (N, D)
+    labels = np.load(cache_dir + '/train_labels.npy')           # (N,)
+    pseudo_logits = np.load(cache_dir + '/train_logits.npy')    # (N, C)
+    pseudo_labels = np.argmax(pseudo_logits, axis=1)            # (N,)
 
     score1 = NCE(pseudo_labels, labels)
     score2 = LEEP(pseudo_logits, labels)

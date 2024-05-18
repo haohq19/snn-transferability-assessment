@@ -27,17 +27,17 @@ np.random.seed(_seed_)
 def parser_args():
     parser = argparse.ArgumentParser(description='transfer SNN on static datasets')
     # data
-    parser.add_argument('--dataset', default='food101', type=str, help='dataset')
-    parser.add_argument('--nsteps', default=8, type=int, help='number of time steps')
-    parser.add_argument('--num_classes', default=101, type=int, help='number of classes')
+    parser.add_argument('--dataset', default='mnist', type=str, help='dataset')
+    parser.add_argument('--nsteps', default=4, type=int, help='number of time steps')
+    parser.add_argument('--num_classes', default=10, type=int, help='number of classes')
     parser.add_argument('--batch_size', default=1024, type=int, help='batch size')
     # model
     parser.add_argument('--connect_f', default='ADD', type=str, help='spike-element-wise connect function')
     # run
     parser.add_argument('--device_id', default=0, type=int, help='GPU id to use.')
     parser.add_argument('--nepochs', default=100, type=int, help='number of epochs')
-    parser.add_argument('--nworkers', default=8, type=int, help='number of workers')
-    parser.add_argument('--pt_dir', default='weights', help='path to pretrained weights')
+    parser.add_argument('--nworkers', default=16, type=int, help='number of workers')
+    parser.add_argument('--pt_dir', default='weights/static', help='path to pretrained weights')
     parser.add_argument('--output_dir', default='outputs/transfer', help='path where to save')
     return parser.parse_args()
 
@@ -110,9 +110,13 @@ def main(args):
     
     # output dir
     output_dir = _get_output_dir(args)
-    if not os.path.exists(output_dir):
+    if os.path.exists(output_dir):
+        print('Exists [{}]'.format(output_dir))
+        return
+    else:
         os.makedirs(output_dir)
         print('Mkdir [{}]'.format(output_dir))
+        
     if not os.path.exists(os.path.join(output_dir, 'checkpoints')):
         os.makedirs(os.path.join(output_dir, 'checkpoints'))
         print('Mkdir [{}]'.format(os.path.join(output_dir, 'checkpoints')))
@@ -124,15 +128,16 @@ def main(args):
     # cache representations
     cache_dir = os.path.join(args.output_dir, args.dataset, args.model, 'cache')  # output_dir/dataset/model/cache
     args.cache_dir = cache_dir
-    train_loader, valid_loader, test_loader = get_static_data_loader(args)
+    if not os.path.exists(cache_dir):
+        train_loader, valid_loader, test_loader = get_static_data_loader(args)
 
-    cache_representations(
-        model=model,
-        train_loader=train_loader,
-        valid_loader=valid_loader,
-        test_loader=test_loader,
-        cache_dir=cache_dir,
-    )
+        cache_representations(
+            model=model,
+            train_loader=train_loader,
+            valid_loader=valid_loader,
+            test_loader=test_loader,
+            cache_dir=cache_dir,
+        )
     train_loader, valid_loader, test_loader = get_data_loader_from_cached_representations(args)
 
     # linear probe
@@ -176,7 +181,7 @@ def main(args):
 
 if __name__ == '__main__':
     models = ['sew_resnet152', 'sew_resnet101', 'sew_resnet50', 'sew_resnet34', 'sew_resnet18', 'spiking_resnet50', 'spiking_resnet34', 'spiking_resnet18']
-    learning_rates = [1e-2, 3e-3, 1e-3, 3e-4, 1e-4]
+    learning_rates = [1e-1, 3e-2, 1e-2, 3e-3, 1e-3]
     weight_decays = [1e-5, 3e-6, 1e-6, 3e-7, 1e-7]
     args = parser_args()
     for model in models:
