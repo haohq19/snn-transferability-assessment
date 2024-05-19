@@ -17,3 +17,16 @@ class LinearProbe(nn.Module):
         x = self.fc(features)
         x = self.sn(x)
         return x.mean(dim=0)  # batch_size, num_classes
+    
+class LinearProbeStatic(nn.Module):
+    def __init__(self, in_features, num_classes):
+        super().__init__()
+        self.in_features = in_features
+        self.num_classes = num_classes
+        self.fc = nn.Linear(in_features, num_classes)
+
+    def forward(self, features):
+        # feature.shape: nsteps, batch_size, in_features
+        x = x.mean(dim=0)   # batch_size, in_features
+        x = self.fc(features)
+        return x

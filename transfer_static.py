@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import models.spiking_resnet_static as spiking_resnet
 import models.sew_resnet_static as sew_resnet
-from models.linear_probe import LinearProbe
+from models.linear_probe import LinearProbeStatic as LinearProbe
 from utils.data import get_static_data_loader
 from engines.transfer import cache_representations, get_data_loader_from_cached_representations, train, test
 
@@ -106,7 +106,7 @@ def main(args):
     torch.cuda.set_device(args.device_id)
 
     # criterion
-    criterion = nn.MSELoss()
+    criterion = nn.CrossEntropyLoss()
     
     # output dir
     output_dir = _get_output_dir(args)
