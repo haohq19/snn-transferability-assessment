@@ -131,9 +131,18 @@ def get_event_data_loader(args):
         DataLoader(test_dataset, batch_size=128, sampler=test_sampler, num_workers=args.nworkers, pin_memory=True, drop_last=False)
 
 
+
+class EnsureRGB:
+    def __call__(self, img):
+        if img.mode == 'L':
+            return img.convert('RGB')
+        return img
+
+
 def get_static_data_loader(args):
 
     _transform = transforms.Compose([
+    EnsureRGB(),
     transforms.Resize(256),
     transforms.CenterCrop(224),
     transforms.ToTensor(),
