@@ -3,7 +3,7 @@ import torch
 import numpy as np
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from torchvision.datasets import CIFAR10, CIFAR100, Caltech101, Caltech256, DTD, Food101
+from torchvision.datasets import CIFAR10, CIFAR100, Caltech101, Caltech256, DTD, Food101, MNIST
 from spikingjelly.datasets import cifar10_dvs, dvs128_gesture, n_caltech101, n_mnist
 
 # # convert scaler to 1-hot vector
@@ -166,6 +166,10 @@ def get_static_data_loader(args):
     elif args.dataset == 'caltech256':
         dataset = Caltech256(root='/home/haohq/datasets/Caltech256', download=True, transform=_transform)
         train_dataset, val_dataset, test_dataset = split3dataset(0.8, 0.1, dataset, num_classes=args.num_classes, random_split=False)
+    elif args.dataset == 'mnist':
+        train_dataset = MNIST(root='/home/haohq/datasets/MNIST', train=True, transform=_transform, download=True)
+        test_dataset = MNIST(root='/home/haohq/datasets/MNIST', train=False, transform=_transform, download=True)
+        train_dataset, val_dataset = split2dataset(0.9, train_dataset, num_classes=args.num_classes, random_split=False)
     elif args.dataset == 'dtd':  # downloaded
         train_dataset = DTD(split='train', root='/home/haohq/datasets/DTD', download=True, transform=_transform)
         val_dataset = DTD(split='val', root='/home/haohq/datasets/DTD', download=True, transform=_transform)
