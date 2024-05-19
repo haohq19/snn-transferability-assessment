@@ -27,6 +27,6 @@ class LinearProbeStatic(nn.Module):
 
     def forward(self, features):
         # feature.shape: nsteps, batch_size, in_features
-        x = x.mean(dim=0)   # batch_size, in_features
-        x = self.fc(features)
+        x = features.mean(dim=0)   # batch_size, in_features
+        x = self.fc(x)
         return x
