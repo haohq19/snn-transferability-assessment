@@ -27,7 +27,7 @@ np.random.seed(_seed_)
 def parser_args():
     parser = argparse.ArgumentParser(description='transfer SNN on static datasets')
     # data
-    parser.add_argument('--dataset', default='mnist', type=str, help='dataset')
+    parser.add_argument('--dataset', default='cifar10', type=str, help='dataset')
     parser.add_argument('--nsteps', default=4, type=int, help='number of time steps')
     parser.add_argument('--num_classes', default=10, type=int, help='number of classes')
     parser.add_argument('--batch_size', default=1024, type=int, help='batch size')

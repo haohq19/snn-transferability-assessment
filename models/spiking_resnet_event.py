@@ -205,7 +205,8 @@ class SpikingResNet(nn.Module):
         x = self.avgpool2(x)
         x = torch.flatten(x, 2)
         self.feature = x
-        return self.fc(x)
+        x = self.fc(x)
+        return x.mean(dim=0)    # x.shape = (N, C)
 
     def forward(self, x):
         return self._forward_impl(x)

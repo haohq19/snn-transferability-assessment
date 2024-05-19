@@ -6,11 +6,11 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR10, CIFAR100, Caltech101, Caltech256, DTD, Food101
 from spikingjelly.datasets import cifar10_dvs, dvs128_gesture, n_caltech101, n_mnist
 
-# convert scaler to 1-hot vector
-def to_onehot(y, nclasses):
-    target = torch.zeros(y.size(0), nclasses)
-    target[torch.arange(y.size(0)), y] = 1
-    return target
+# # convert scaler to 1-hot vector
+# def to_onehot(y, nclasses):
+#     target = torch.zeros(y.size(0), nclasses)
+#     target[torch.arange(y.size(0)), y] = 1
+#     return target
 
 
 def split2dataset(train_ratio: float, origin_dataset: torch.utils.data.Dataset, num_classes: int, random_split: bool = True):

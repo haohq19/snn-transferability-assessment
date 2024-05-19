@@ -7,13 +7,14 @@ import random
 import glob
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import models.spiking_resnet_event as spiking_resnet
 import models.sew_resnet_event as sew_resnet
 import datasets.es_imagenet as es_imagenet
-import utils.data as utils
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from spikingjelly.activation_based import functional
+from utils.distributed import is_master, save_on_master, init_dist, global_meters_all_sum
 
 _seed_ = 2020
 random.seed(2020)
@@ -121,7 +122,7 @@ def train(
     output_dir: str,
     args: argparse.Namespace,
 ):  
-    if utils.is_master():
+    if is_master():
         import tqdm
         tb_writer = SummaryWriter(output_dir + '/log')
         print('log saved to {}'.format(output_dir + '/log'))
@@ -139,14 +140,14 @@ def train(
         total_loss = 0
         nsteps_per_epoch = len(train_loader)
         step = 0
-        if utils.is_master():
+        if is_master():
             process_bar = tqdm.tqdm(total=nsteps_per_epoch)
         for input, label in train_loader:
             input = input.cuda(non_blocking=True)
             label = label.cuda(non_blocking=True)
             input = input.transpose(0, 1)  # N, T, C, H, W
-            target = utils.to_onehot(label, args.nclasses).cuda(non_blocking=True)
-            output = model(input).mean(dim=0).squeeze()
+            target = F.one_hot(label, args.nclasses).cuda(non_blocking=True)
+            output = model(input)          # N, C
             loss = criterion(output, target)
             optimizer.zero_grad()
             loss.backward()
@@ -159,14 +160,14 @@ def train(
             top5_correct += predicted.T.eq(label[None]).sum().item()
             total_loss += loss.item()
             step += 1
-            if utils.is_master():
+            if is_master():
                 tb_writer.add_scalar('step_loss', loss.item(), epoch * nsteps_per_epoch + step)
                 process_bar.update(1)
         if args.distributed:
-            top1_correct, top5_correct, total_loss = utils.global_meters_all_sum(args, top1_correct, top5_correct, total_loss)
+            top1_correct, top5_correct, total_loss = global_meters_all_sum(args, top1_correct, top5_correct, total_loss)
         top1_accuracy = top1_correct / total * 100
         top5_accuracy = top5_correct / total * 100
-        if utils.is_master():    
+        if is_master():    
             tb_writer.add_scalar('train_acc@1', top1_accuracy, epoch + 1)
             tb_writer.add_scalar('train_acc@5', top5_accuracy, epoch + 1)
             tb_writer.add_scalar('train_loss', total_loss, epoch + 1)
@@ -181,15 +182,15 @@ def train(
         total = len(val_loader.dataset)
         total_loss = 0
         nsteps_per_epoch = len(val_loader)
-        if utils.is_master():
+        if is_master():
             process_bar = tqdm.tqdm(total=nsteps_per_epoch)
         with torch.no_grad():
             for input, label in val_loader:
                 input = input.cuda(non_blocking=True)
                 label = label.cuda(non_blocking=True)
                 input = input.transpose(0, 1)
-                target = utils.to_onehot(label, args.nclasses).cuda(non_blocking=True)
-                output = model(input).mean(dim=0).squeeze()  # batch_size, num_classes
+                target = F.one_hot(label, args.nclasses).cuda(non_blocking=True)
+                output = model(input)       # N, C
                 loss = criterion(output, target)
                 functional.reset_net(model)
 
@@ -198,14 +199,14 @@ def train(
                 top1_correct += predicted[:, 0].eq(label).sum().item()
                 top5_correct += predicted.T.eq(label[None]).sum().item()
                 total_loss += loss.item()
-                if utils.is_master():
+                if is_master():
                     process_bar.update(1)
         
         if args.distributed:
-            top1_correct, top5_correct, total_loss = utils.global_meters_all_sum(args, top1_correct, top5_correct, total_loss)
+            top1_correct, top5_correct, total_loss = global_meters_all_sum(args, top1_correct, top5_correct, total_loss)
         top1_accuracy = top1_correct / total * 100
         top5_accuracy = top5_correct / total * 100
-        if utils.is_master():   
+        if is_master():   
             tb_writer.add_scalar('val_acc@1', top1_accuracy, epoch + 1)
             tb_writer.add_scalar('val_acc@5', top5_accuracy, epoch + 1)
             tb_writer.add_scalar('val_loss', total_loss, epoch + 1)
@@ -226,13 +227,13 @@ def train(
                 'args': args,
             }
             save_name = 'checkpoint/checkpoint_epoch{}_acc{:.2f}.pth'.format(epoch, top1_accuracy)
-            utils.save_on_master(checkpoint, os.path.join(output_dir, save_name))
+            save_on_master(checkpoint, os.path.join(output_dir, save_name))
             print('saved checkpoint to {}'.format(output_dir))
 
 
 def main(args):
     # init distributed training
-    utils.init_dist(args)
+    init_dist(args)
     print(args)
     
     # device
@@ -293,7 +294,7 @@ def main(args):
         epoch = state_dict['epoch']
 
     # output_dir
-    if utils.is_master():
+    if is_master():
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
         if not os.path.exists(os.path.join(output_dir, 'checkpoint')):

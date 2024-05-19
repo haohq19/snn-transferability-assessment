@@ -8,7 +8,7 @@ from engines.assess import assess_with_cache
 def parser_args():
     parser = argparse.ArgumentParser(description='assess SNN with cache')
     # data
-    parser.add_argument('--dataset', default='dvs128_gesture', type=str, help='dataset')
+    parser.add_argument('--dataset', default='', type=str, help='dataset')
     parser.add_argument('--output_dir', default='outputs/transfer', type=str, help='output directory')
     return parser.parse_args()
 

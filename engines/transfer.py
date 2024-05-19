@@ -48,7 +48,7 @@ def cache_representations(
             # label.shape = [batch_size]
             label = label.numpy()                                   # label.shape = [batch_size]
 
-            output = model(input).mean(dim=0)                       # output.shape = [batch_size, num_classes]
+            output = model(input)                                   # output.shape = [batch_size, num_classes]
             
             feature_map = model.feature.detach().cpu().numpy()      # feature_map.shape = [nsteps, batch_size, num_features]
             features.append(feature_map)
