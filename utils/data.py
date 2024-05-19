@@ -151,6 +151,12 @@ def get_static_data_loader(args):
         train_dataset = CIFAR100(train=True, root='/home/haohq/datasets/CIFAR100', download=True, transform=_transform)
         test_dataset = CIFAR100(train=False, root='/home/haohq/datasets/CIFAR100', download=True, transform=_transform)
         train_dataset, val_dataset = split2dataset(0.9, train_dataset, num_classes=args.num_classes, random_split=False)
+    elif args.dataset == 'caltech101':
+        dataset = Caltech101(root='/home/haohq/datasets/Caltech101', download=True, transform=_transform)
+        train_dataset, val_dataset, test_dataset = split3dataset(0.8, 0.1, dataset, num_classes=args.num_classes, random_split=False)
+    elif args.dataset == 'caltech256':
+        dataset = Caltech256(root='/home/haohq/datasets/Caltech256', download=True, transform=_transform)
+        train_dataset, val_dataset, test_dataset = split3dataset(0.8, 0.1, dataset, num_classes=args.num_classes, random_split=False)
     elif args.dataset == 'dtd':  # downloaded
         train_dataset = DTD(split='train', root='/home/haohq/datasets/DTD', download=True, transform=_transform)
         val_dataset = DTD(split='val', root='/home/haohq/datasets/DTD', download=True, transform=_transform)
