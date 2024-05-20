@@ -26,10 +26,7 @@ model_names = [
 if __name__ == '__main__':
     args = parser_args()
 
-    score1s = []
-    score2s = []
-    score3s = []
     for model in model_names:
         cache_dir = os.path.join(args.output_dir, args.dataset, model, 'cache')
-        score1, score2, iter1, iter2 = compare_logme_and_approxme_with_cache(cache_dir=cache_dir)
-        print('logME: {:.4f}, {:.2f}, ApproxME: {:.4f}, {:.2f}'.format(score1, iter1, score2, iter2))
+        score1, iter1, score2 = compare_logme_and_approxme_with_cache(cache_dir=cache_dir)
+        print('logME: {:.4f}, {:.2f}, ApproxME: {:.4f}'.format(score1, iter1, score2))
