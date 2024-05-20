@@ -24,6 +24,7 @@ def ApproxME(f: np.ndarray, y: np.ndarray):
     :param f: [N, D], feature matrix from PTM.
     :param y: [N], target labels with element in [0, C_t).
     """
+
     f = f.astype(np.float64)
     y = y.astype(np.float64)
     if len(y.shape) == 1:
@@ -70,7 +71,7 @@ def ApproxME(f: np.ndarray, y: np.ndarray):
             alpha = gamma / (m2 + 1e-5)
             beta = (N - gamma) / (res2 + 1e-5)
             t_ = alpha / beta
-            if abs(t_ - t) / t <= 1e-3 or iter > 10000:
+            if abs(t_ - t) / t <= 1e-5:
                 break
             iter += 1
         

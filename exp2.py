@@ -1,13 +1,13 @@
-# calculate LogME, NCE and LEEP with cached features and outputs
+# compare iter of logME and ApproxME
 
 import os
 import argparse
-from engines.assess import assess_with_cache
+from engines.assess import compare_iter_with_cache
 
 def parser_args():
     parser = argparse.ArgumentParser(description='assess SNN with cache')
     # data
-    parser.add_argument('--dataset', default='n_mnist', type=str, help='dataset')
+    parser.add_argument('--dataset', default='dvs128_gesture', type=str, help='dataset')
     parser.add_argument('--output_dir', default='outputs/transfer', type=str, help='output directory')
     return parser.parse_args()
 
@@ -31,5 +31,5 @@ if __name__ == '__main__':
     score3s = []
     for model in model_names:
         cache_dir = os.path.join(args.output_dir, args.dataset, model, 'cache')
-        score1, score2, score3 = assess_with_cache(cache_dir=cache_dir)
-        print('NCE: {:.8f}, LEEP: {:.8f}, logME: {:.8f}'.format(score1, score2, score3))
+        score1, score2, iter1, iter2 = compare_iter_with_cache(cache_dir=cache_dir)
+        print('logME: {:.4f}, {:.2f}, ApproxME: {:.4f}, {:.2f}'.format(score1, iter1, score2, iter2))

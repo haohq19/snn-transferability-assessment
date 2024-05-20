@@ -15,9 +15,9 @@ def compare_iter_with_cache(cache_dir):
     feature_maps = np.load(os.path.join(cache_dir, 'train_features.npy'))  # (N, T, D)
     feature_maps = feature_maps.mean(axis=1)                               # (N, D)
     labels = np.load(os.path.join(cache_dir, 'train_labels.npy'))          # (N,)
-    _, iter1 = logME(feature_maps, labels)
-    _, iter2 = ApproxME(feature_maps, labels)
-    return iter1, iter2
+    score1, iter1 = logME(feature_maps, labels)
+    score2, iter2 = ApproxME(feature_maps, labels)
+    return score1, score2, iter1, iter2
 
 
 def assess_with_cache(cache_dir):

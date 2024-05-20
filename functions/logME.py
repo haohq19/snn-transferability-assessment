@@ -48,6 +48,7 @@ def logME(f: np.ndarray, y: np.ndarray):
         iters = []
         num_dim = int(y.max() + 1)
         for i in range(num_dim):
+
             y_ = (y == i).astype(np.float64)
             y_ = y_.reshape(-1, 1)
             x = u.T @ y_  # x has shape [k, 1], but actually x should have shape [N, 1]
@@ -65,7 +66,7 @@ def logME(f: np.ndarray, y: np.ndarray):
                 alpha = gamma / (m2 + 1e-5)
                 beta = (N - gamma) / (res2 + 1e-5)
                 t_ = alpha / beta
-                if abs(t_ - t) / t <= 1e-3 or iter > 11:  # abs(t_ - t) <= 1e-5 or abs(1 / t_ - 1 / t) <= 1e-5:
+                if abs(t_ - t) / t <= 1e-5:  # abs(t_ - t) <= 1e-5 or abs(1 / t_ - 1 / t) <= 1e-5:
                     break
                 iter += 1
             iters.append(iter)
