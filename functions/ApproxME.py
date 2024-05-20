@@ -62,20 +62,20 @@ def ApproxME(f: np.ndarray, y: np.ndarray):
         beta = N / (res2 + t * m2)
         alpha = t * beta
         
-        iter = 0
-        while True:
-            t = alpha / beta
-            gamma = (sigma / (sigma + t)).sum()
-            m2 = (sigma * z2 / ((t + sigma) ** 2)).sum()
-            res2 = (z2 / ((1 + sigma / t) ** 2)).sum() + delta
-            alpha = gamma / (m2 + 1e-5)
-            beta = (N - gamma) / (res2 + 1e-5)
-            t_ = alpha / beta
-            if abs(t_ - t) / t <= 1e-5:
-                break
-            iter += 1
+        # iter = 0
+        # while True:
+        #     t = alpha / beta
+        #     gamma = (sigma / (sigma + t)).sum()
+        #     m2 = (sigma * z2 / ((t + sigma) ** 2)).sum()
+        #     res2 = (z2 / ((1 + sigma / t) ** 2)).sum() + delta
+        #     alpha = gamma / (m2 + 1e-5)
+        #     beta = (N - gamma) / (res2 + 1e-5)
+        #     t_ = alpha / beta
+        #     if abs(t_ - t) / t <= 1e-5:
+        #         break
+        #     iter += 1
         
-        iters.append(iter)
+        # iters.append(iter)
 
         evidence = D / 2.0 * np.log(alpha) \
                  + N / 2.0 * np.log(beta) \
