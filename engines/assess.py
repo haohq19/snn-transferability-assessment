@@ -9,7 +9,7 @@ from functions.NCE import NCE
 from functions.LEEP import LEEP
 
 
-def compare_iter_with_cache(cache_dir):
+def compare_logme_and_approxme_with_cache(cache_dir):
     # compare the iteration number of logME and ApproxME with cached features
     # return score of logME, ApproxME, iter of logME, iter of ApproxME
     feature_maps = np.load(os.path.join(cache_dir, 'train_features.npy'))  # (N, T, D)

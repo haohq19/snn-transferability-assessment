@@ -1,8 +1,8 @@
-# compare iter of logME and ApproxME
+# compare logME and ApproxME
 
 import os
 import argparse
-from engines.assess import compare_iter_with_cache
+from engines.assess import compare_logme_and_approxme_with_cache
 
 def parser_args():
     parser = argparse.ArgumentParser(description='assess SNN with cache')
@@ -31,5 +31,5 @@ if __name__ == '__main__':
     score3s = []
     for model in model_names:
         cache_dir = os.path.join(args.output_dir, args.dataset, model, 'cache')
-        score1, score2, iter1, iter2 = compare_iter_with_cache(cache_dir=cache_dir)
+        score1, score2, iter1, iter2 = compare_logme_and_approxme_with_cache(cache_dir=cache_dir)
         print('logME: {:.4f}, {:.2f}, ApproxME: {:.4f}, {:.2f}'.format(score1, iter1, score2, iter2))
