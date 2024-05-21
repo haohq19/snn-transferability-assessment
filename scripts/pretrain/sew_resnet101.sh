@@ -1,18 +1,17 @@
-python -m torch.distributed.run --nproc_per_node=8 pretrain.py\
+torchrun --nproc_per_node=8 pretrain.py\
     --dataset 'es_imagenet' \
-    --root '/home/haohq/datasets/ESImageNet-old' \
+    --root 'path to the dataset' \
     --nsteps 8 \
-    --nclasses 1000 \
+    --num_classes 1000 \
     --batch_size 8 \
     --model 'sew_resnet101' \
     --connect_f 'ADD' \
-    --nepochs 100 \
-    --nworkers 16 \
+    --nepochs 10 \
+    --nworkers 32 \
     --lr 0.01 \
-    --optim 'Adam'\
-    --output_dir 'outputs/pretrain/' \
-    --save_freq 10 \
-    --sched 'StepLR' \
-    --step_size 25 \
+    --output_dir '' \
+    --save_freq 1 \
+    --step_size 3 \
     --gamma 0.3 \
-    --sync_bn
+    --sync_bn \
+    --backend 'nccl'
