@@ -180,7 +180,7 @@ def main(args):
     
 
 if __name__ == '__main__':
-    models = ['sew_resnet152', 'sew_resnet101', 'sew_resnet50', 'sew_resnet34', 'sew_resnet18', 'spiking_resnet50', 'spiking_resnet34', 'spiking_resnet18']
+    models = ['sew_resnet18', 'sew_resnet34', 'sew_resnet50', 'sew_resnet101', 'sew_resnet152', 'spiking_resnet18', 'spiking_resnet34', 'spiking_resnet50']
     learning_rates = [1e-1, 3e-2, 1e-2, 3e-3, 1e-3]
     weight_decays = [1e-5, 3e-6, 1e-6, 3e-7, 1e-7]
     args = parser_args()
