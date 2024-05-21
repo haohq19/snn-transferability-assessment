@@ -27,7 +27,7 @@ def parser_args():
     parser = argparse.ArgumentParser(description='pretrain SNN')
     # data
     parser.add_argument('--dataset', default='es_imagenet', type=str, help='dataset')
-    parser.add_argument('--root', default='/home/haohq/datasets/ESImageNet-old', type=str, help='path to dataset')
+    parser.add_argument('--root', default=None, type=str, help='path to dataset')
     parser.add_argument('--nsteps', default=8, type=int, help='number of time steps')
     parser.add_argument('--num_classes', default=1000, type=int, help='number of classes')
     parser.add_argument('--batch_size', default=60, type=int, help='batch size')
@@ -178,8 +178,3 @@ def main(args):
 if __name__ == '__main__':
     args = parser_args()
     main(args)
-
-
-'''
-python -m torch.distributed.run --nproc_per_node=8 pretrain.py --sync_bn --batch_size 40
-'''

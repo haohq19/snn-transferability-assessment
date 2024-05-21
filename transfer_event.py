@@ -189,7 +189,3 @@ if __name__ == '__main__':
                 args.lr = lr
                 args.weight_decay = weight_decay
                 main(args)
-
-'''
-python transfer_event.py
-'''

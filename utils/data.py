@@ -6,12 +6,6 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR10, CIFAR100, Caltech101, Caltech256, DTD, Food101, MNIST
 from spikingjelly.datasets import cifar10_dvs, dvs128_gesture, n_caltech101, n_mnist
 
-# # convert scaler to 1-hot vector
-# def to_onehot(y, nclasses):
-#     target = torch.zeros(y.size(0), nclasses)
-#     target[torch.arange(y.size(0)), y] = 1
-#     return target
-
 
 def split2dataset(train_ratio: float, origin_dataset: torch.utils.data.Dataset, num_classes: int, random_split: bool = True):
     '''
@@ -92,31 +86,23 @@ def split3dataset(train_ratio: float, val_ratio: float, origin_dataset: torch.ut
 
 def get_event_data_loader(args):
 
-    if args.dataset == 'cifar10_dvs':  
-        # downloaded
-        # root = '/home/haohq/datasets/CIFAR10DVS'
-        dataset = cifar10_dvs.CIFAR10DVS(root='/home/haohq/datasets/CIFAR10DVS', data_type='frame', frames_number=args.nsteps, split_by='time')
+    if args.dataset == 'cifar10_dvs':
+        dataset = cifar10_dvs.CIFAR10DVS(root='data/CIFAR10DVS', data_type='frame', frames_number=args.nsteps, split_by='time')
         train_dataset, val_dataset, test_dataset = split3dataset(0.8, 0.1, dataset, args.num_classes, random_split=False)
 
     elif args.dataset == 'dvs128_gesture':  
-        # downloaded
-        # root = '/home/haohq/datasets/DVS128Gesture'
         dataset = dvs128_gesture.DVS128Gesture
-        train_dataset = dataset(root='/home/haohq/datasets/DVS128Gesture', train=True, data_type='frame', frames_number=args.nsteps, split_by='time')
-        test_dataset = dataset(root='/home/haohq/datasets/DVS128Gesture', train=False, data_type='frame', frames_number=args.nsteps, split_by='time')
+        train_dataset = dataset(root='data/DVS128Gesture', train=True, data_type='frame', frames_number=args.nsteps, split_by='time')
+        test_dataset = dataset(root='data/DVS128Gesture', train=False, data_type='frame', frames_number=args.nsteps, split_by='time')
         train_dataset, val_dataset = split2dataset(0.9, train_dataset, args.num_classes, random_split=False)
 
-    elif args.dataset == 'n_caltech101':  
-        # downloaded
-        # root = '/home/haohq/datasets/NCaltech101'
-        dataset = n_caltech101.NCaltech101(root='/home/haohq/datasets/NCaltech101', data_type='frame', frames_number=args.nsteps, split_by='time')
+    elif args.dataset == 'n_caltech101':
+        dataset = n_caltech101.NCaltech101(root='data/NCaltech101', data_type='frame', frames_number=args.nsteps, split_by='time')
         train_dataset, val_dataset, test_dataset= split3dataset(0.8, 0.1, dataset, args.num_classes, random_split=False)
 
-    elif args.dataset == 'n_mnist':  
-        # downloaded
-        # root = '/home/haohq/datasets/NMNIST'
-        train_dataset = n_mnist.NMNIST(root='/home/haohq/datasets/NMNIST', train=True, data_type='frame', frames_number=args.nsteps, split_by='time')
-        test_dataset = n_mnist.NMNIST(root='/home/haohq/datasets/NMNIST', train=False, data_type='frame', frames_number=args.nsteps, split_by='time')
+    elif args.dataset == 'n_mnist':
+        train_dataset = n_mnist.NMNIST(root='data/NMNIST', train=True, data_type='frame', frames_number=args.nsteps, split_by='time')
+        test_dataset = n_mnist.NMNIST(root='data/NMNIST', train=False, data_type='frame', frames_number=args.nsteps, split_by='time')
         train_dataset, val_dataset = split2dataset(0.9, train_dataset, args.num_classes, random_split=False)
 
     else:
@@ -152,31 +138,31 @@ def get_static_data_loader(args):
     )
 ])
     
-    if args.dataset == 'cifar10':   # downloaded
-        train_dataset = CIFAR10(train=True, root='/home/haohq/datasets/CIFAR10', download=True, transform=_transform)
-        test_dataset = CIFAR10(train=False, root='/home/haohq/datasets/CIFAR10', download=True, transform=_transform)
+    if args.dataset == 'cifar10':
+        train_dataset = CIFAR10(train=True, root='data/CIFAR10', download=True, transform=_transform)
+        test_dataset = CIFAR10(train=False, root='data/CIFAR10', download=True, transform=_transform)
         train_dataset, val_dataset = split2dataset(0.9, train_dataset, num_classes=args.num_classes, random_split=False)
-    elif args.dataset == 'cifar100':  # downloaded
-        train_dataset = CIFAR100(train=True, root='/home/haohq/datasets/CIFAR100', download=True, transform=_transform)
-        test_dataset = CIFAR100(train=False, root='/home/haohq/datasets/CIFAR100', download=True, transform=_transform)
+    elif args.dataset == 'cifar100':
+        train_dataset = CIFAR100(train=True, root='data/CIFAR100', download=True, transform=_transform)
+        test_dataset = CIFAR100(train=False, root='data/CIFAR100', download=True, transform=_transform)
         train_dataset, val_dataset = split2dataset(0.9, train_dataset, num_classes=args.num_classes, random_split=False)
     elif args.dataset == 'caltech101':
-        dataset = Caltech101(root='/home/haohq/datasets/Caltech101', download=True, transform=_transform)
+        dataset = Caltech101(root='data/Caltech101', download=True, transform=_transform)
         train_dataset, val_dataset, test_dataset = split3dataset(0.8, 0.1, dataset, num_classes=args.num_classes, random_split=False)
     elif args.dataset == 'caltech256':
-        dataset = Caltech256(root='/home/haohq/datasets/Caltech256', download=True, transform=_transform)
+        dataset = Caltech256(root='data/Caltech256', download=True, transform=_transform)
         train_dataset, val_dataset, test_dataset = split3dataset(0.8, 0.1, dataset, num_classes=args.num_classes, random_split=False)
     elif args.dataset == 'mnist':
-        train_dataset = MNIST(root='/home/haohq/datasets/MNIST', train=True, transform=_transform, download=True)
-        test_dataset = MNIST(root='/home/haohq/datasets/MNIST', train=False, transform=_transform, download=True)
+        train_dataset = MNIST(root='data/MNIST', train=True, transform=_transform, download=True)
+        test_dataset = MNIST(root='data/MNIST', train=False, transform=_transform, download=True)
         train_dataset, val_dataset = split2dataset(0.9, train_dataset, num_classes=args.num_classes, random_split=False)
-    elif args.dataset == 'dtd':  # downloaded
-        train_dataset = DTD(split='train', root='/home/haohq/datasets/DTD', download=True, transform=_transform)
-        val_dataset = DTD(split='val', root='/home/haohq/datasets/DTD', download=True, transform=_transform)
-        test_dataset = DTD(split='test', root='/home/haohq/datasets/DTD', download=True, transform=_transform)
-    elif args.dataset == 'food101':  # downloaded
-        train_dataset = Food101(split='train', root='/home/haohq/datasets/Food101', download=True, transform=_transform)
-        test_dataset = Food101(split='test', root='/home/haohq/datasets/Food101', download=True, transform=_transform)
+    elif args.dataset == 'dtd':
+        train_dataset = DTD(split='train', root='data/DTD', download=True, transform=_transform)
+        val_dataset = DTD(split='val', root='data/DTD', download=True, transform=_transform)
+        test_dataset = DTD(split='test', root='data/DTD', download=True, transform=_transform)
+    elif args.dataset == 'food101':
+        train_dataset = Food101(split='train', root='data/Food101', download=True, transform=_transform)
+        test_dataset = Food101(split='test', root='data/Food101', download=True, transform=_transform)
         train_dataset, val_dataset = split2dataset(0.9, train_dataset, num_classes=args.num_classes, random_split=False)
     else:
         raise NotImplementedError(args.dataset)
