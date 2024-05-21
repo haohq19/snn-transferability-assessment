@@ -2,19 +2,16 @@ torchrun --nproc_per_node=4 pretrain.py\
     --dataset 'es_imagenet' \
     --root '/home/haohq/datasets/ESImageNet-old' \
     --nsteps 8 \
-    --nclasses 1000 \
+    --num_classes 1000 \
     --batch_size 60 \
     --model 'sew_resnet18' \
     --connect_f 'ADD' \
-    --nepochs 100 \
-    --nworkers 16 \
+    --nepochs 10 \
+    --nworkers 32 \
     --lr 0.01 \
-    --optim 'Adam'\
     --output_dir 'outputs/pretrain/' \
-    --save_freq 10 \
-    --sched 'StepLR' \
-    --step_size 25 \
+    --save_freq 1 \
+    --step_size 3 \
     --gamma 0.3 \
-    --backend 'gloo' \
     --sync_bn \
-    --resume
+    --backend 'nccl'

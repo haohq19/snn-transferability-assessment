@@ -66,7 +66,7 @@ def logME(f: np.ndarray, y: np.ndarray):
                 alpha = gamma / (m2 + 1e-5)
                 beta = (N - gamma) / (res2 + 1e-5)
                 t_ = alpha / beta
-                if abs(t_ - t) / t <= 1e-5:  # abs(t_ - t) <= 1e-5 or abs(1 / t_ - 1 / t) <= 1e-5:
+                if abs(t_ - t) / t <= 0.01:  # abs(t_ - t) <= 1e-5 or abs(1 / t_ - 1 / t) <= 1e-5:
                     break
                 iter += 1
             iters.append(iter)

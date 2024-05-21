@@ -75,7 +75,7 @@ class ESImageNet(torch.utils.data.Dataset):
         input[t, 0, x, y] = 1
 
         input = input[..., 16:240, 16:240]
-        return input, torch.Tensor([class_num]).squeeze().int()
+        return input, torch.Tensor([class_num]).squeeze().long()
 
     def __len__(self):
         return self.__len__
