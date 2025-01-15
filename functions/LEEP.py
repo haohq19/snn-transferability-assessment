@@ -1,3 +1,4 @@
+# Modified from: https://github.com/thuml/LogME/blob/main/LEEP.py
 import numpy as np
 
 

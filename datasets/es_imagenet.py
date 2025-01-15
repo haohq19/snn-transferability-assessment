@@ -25,7 +25,7 @@ class ESImageNet(torch.utils.data.Dataset):
         self.val_label_path = os.path.join(self.root, 'vallabel.txt')
         self.nsteps = nsteps
         if self.nsteps != 8:
-            raise NotImplementedError('nsteps must be 8')
+            raise Warning('The number of steps of the input data should be 8 in this dataset')
         file_names = []
         if self.train:
             self.path = os.path.join(self.root, 'train')

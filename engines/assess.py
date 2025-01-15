@@ -3,7 +3,7 @@
 import os
 import torch
 import numpy as np
-from functions.logME import logME
+from functions.LogME import logME
 from functions.ApproxME import ApproxME
 from functions.NCE import NCE
 from functions.LEEP import LEEP

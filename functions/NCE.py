@@ -1,3 +1,4 @@
+# Modified from: https://github.com/thuml/LogME/blob/main/NCE.py
 import numpy as np
 
 def NCE(source_label: np.ndarray, target_label: np.ndarray):

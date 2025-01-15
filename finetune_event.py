@@ -1,4 +1,4 @@
-# transfer pretrained SNN on static datasets
+# fine-tune pretrained spiking neural networks on event-based (neuromorphic) datasets
 
 import os
 import argparse
@@ -8,11 +8,11 @@ import random
 import yaml
 import torch
 import torch.nn as nn
-import models.spiking_resnet_static as spiking_resnet
-import models.sew_resnet_static as sew_resnet
-from models.linear_probe import LinearProbeStatic as LinearProbe
-from utils.data import get_static_data_loader
-from engines.transfer import cache_representations, get_data_loader_from_cached_representations, train, test
+import models.spiking_resnet_event as spiking_resnet
+import models.sew_resnet_event as sew_resnet
+from models.linear_probe import LinearProbe
+from utils.data import get_event_data_loader
+from engines.finetune import cache_representations, get_data_loader_from_cached_representations, train, test
 
 
 _seed_ = 2024
@@ -25,19 +25,19 @@ np.random.seed(_seed_)
 
 
 def parser_args():
-    parser = argparse.ArgumentParser(description='transfer SNN on static datasets')
+    parser = argparse.ArgumentParser(description='transfer SNN on event-based datasets')
     # data
-    parser.add_argument('--dataset', default='cifar10', type=str, help='dataset')
-    parser.add_argument('--nsteps', default=4, type=int, help='number of time steps')
-    parser.add_argument('--num_classes', default=10, type=int, help='number of classes')
-    parser.add_argument('--batch_size', default=1024, type=int, help='batch size')
+    parser.add_argument('--dataset', default='dvs128_gesture', type=str, help='dataset')
+    parser.add_argument('--nsteps', default=8, type=int, help='number of time steps')
+    parser.add_argument('--num_classes', default=11, type=int, help='number of classes')
+    parser.add_argument('--batch_size', default=2048, type=int, help='batch size')
     # model
     parser.add_argument('--connect_f', default='ADD', type=str, help='spike-element-wise connect function')
     # run
     parser.add_argument('--device_id', default=0, type=int, help='GPU id to use.')
-    parser.add_argument('--nepochs', default=100, type=int, help='number of epochs')
+    parser.add_argument('--nepochs', default=200, type=int, help='number of epochs')
     parser.add_argument('--nworkers', default=16, type=int, help='number of workers')
-    parser.add_argument('--pt_dir', default='weights/static', help='path to pretrained weights')
+    parser.add_argument('--pt_dir', default='weights/event', help='path to pretrained weights')
     parser.add_argument('--output_dir', default='outputs/transfer', help='path where to save')
     return parser.parse_args()
 
@@ -67,14 +67,12 @@ def _get_model(args):
         model = sew_resnet.__dict__[args.model](num_classes=1000, T=args.nsteps, connect_f=args.connect_f)
         if pt_weights is not None:
             state_dict = {k.replace('module.', ''): v for k, v in pt_weights.items()}
-            state_dict = {k.replace('fc', 'fc.0'): v for k, v in state_dict.items()}
             model.load_state_dict(state_dict)
             print('Load pretrained weights from [{}]'.format(pt_path))
     elif args.model in spiking_resnet.__dict__:
         model = spiking_resnet.__dict__[args.model](num_classes=1000, T=args.nsteps)
         if pt_weights is not None:
             state_dict = {k.replace('module.', ''): v for k, v in pt_weights.items()}
-            state_dict = {k.replace('fc', 'fc.0'): v for k, v in state_dict.items()}
             model.load_state_dict(state_dict)
             print('Load pretrained weights from [{}]'.format(pt_path))
     else:
@@ -106,7 +104,7 @@ def main(args):
     torch.cuda.set_device(args.device_id)
 
     # criterion
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.MSELoss()
     
     # output dir
     output_dir = _get_output_dir(args)
@@ -129,7 +127,7 @@ def main(args):
     cache_dir = os.path.join(args.output_dir, args.dataset, args.model, 'cache')  # output_dir/dataset/model/cache
     args.cache_dir = cache_dir
     if not os.path.exists(cache_dir):
-        train_loader, valid_loader, test_loader = get_static_data_loader(args)
+        train_loader, valid_loader, test_loader = get_event_data_loader(args)
 
         cache_representations(
             model=model,
@@ -182,7 +180,7 @@ def main(args):
 if __name__ == '__main__':
     models = ['sew_resnet18', 'sew_resnet34', 'sew_resnet50', 'sew_resnet101', 'sew_resnet152', 'spiking_resnet18', 'spiking_resnet34', 'spiking_resnet50']
     learning_rates = [1e-1, 3e-2, 1e-2, 3e-3, 1e-3]
-    weight_decays = [1e-5, 3e-6, 1e-6, 3e-7, 1e-7]
+    weight_decays = [1e-5, 1e-6, 1e-7, 1e-8]
     args = parser_args()
     for model in models:
         for lr in learning_rates:

@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 from spikingjelly.activation_based import functional
-from utils.distributed import is_master, save_on_master, global_meters_all_sum
+from utils.dist import is_master, save_on_master, global_meters_all_sum
 
 _seed_ = 2020
 random.seed(2020)

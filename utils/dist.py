@@ -1,3 +1,4 @@
+# Modified from: https://github.com/fangwei123456/Spike-Element-Wise-ResNet/blob/main/imagenet/utils.py
 import os
 import torch
 import torch.distributed as dist

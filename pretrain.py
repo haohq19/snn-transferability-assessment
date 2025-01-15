@@ -1,5 +1,5 @@
-# pretrained SNN on ES-ImageNet
-
+# pretrain spiking neural networks on the ES-ImageNet dataset
+ 
 import os
 import argparse
 import numpy as np
@@ -12,7 +12,7 @@ import models.spiking_resnet_event as spiking_resnet
 import models.sew_resnet_event as sew_resnet
 import datasets.es_imagenet as es_imagenet
 from torch.utils.data import DataLoader
-from utils.distributed import is_master, init_dist
+from utils.dist import is_master, init_dist
 from engines.pretrain import train
 
 _seed_ = 2020
