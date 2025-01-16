@@ -41,8 +41,6 @@ class ESImageNet(torch.utils.data.Dataset):
                     file_names.append(file_name)
         self.__len__ = len(file_names)
 
-    
-        
         
     def __getitem__(self, idx):
         '''

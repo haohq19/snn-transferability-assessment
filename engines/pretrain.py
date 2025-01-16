@@ -1,4 +1,4 @@
-# pretrained SNN on ES-ImageNet
+# pretrain spiking on ES-ImageNet
 
 import os
 import tqdm

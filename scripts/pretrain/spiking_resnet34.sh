@@ -1,4 +1,4 @@
-torchrun --nproc_per_node=8 pretrain.py\
+torchrun --nproc_per_node=8 run_pretraining.py\
     --dataset 'es_imagenet' \
     --root 'path to the dataset' \
     --nsteps 8 \

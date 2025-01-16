@@ -10,6 +10,7 @@ import torch
 import torch.nn as nn
 import models.spiking_resnet_event as spiking_resnet
 import models.sew_resnet_event as sew_resnet
+import models.spiking_mlp_event as spiking_mlp
 import datasets.es_imagenet as es_imagenet
 from torch.utils.data import DataLoader
 from utils.dist import is_master, init_dist
@@ -24,15 +25,15 @@ torch.backends.cudnn.benchmark = False
 np.random.seed(_seed_)
 
 def parser_args():
-    parser = argparse.ArgumentParser(description='pretrain SNN')
+    parser = argparse.ArgumentParser()
     # data
     parser.add_argument('--dataset', default='es_imagenet', type=str, help='dataset')
-    parser.add_argument('--root', default=None, type=str, help='path to dataset')
+    parser.add_argument('--root', default='/home/haohq/datasets/ESImageNet-old', type=str, help='path to dataset')
     parser.add_argument('--nsteps', default=8, type=int, help='number of time steps')
     parser.add_argument('--num_classes', default=1000, type=int, help='number of classes')
     parser.add_argument('--batch_size', default=60, type=int, help='batch size')
     # model
-    parser.add_argument('--model', default='sew_resnet18', type=str, help='model type')
+    parser.add_argument('--model', default='spiking_mlp1', type=str, help='model type')
     parser.add_argument('--connect_f', default='ADD', type=str, help='spike-element-wise connect function')
     # run
     parser.add_argument('--device_id', default=0, type=int, help='GPU id to use, invalid when distributed training')
@@ -75,6 +76,8 @@ def _get_model(args):
         model = sew_resnet.__dict__[args.model](num_classes=args.num_classes, T=args.nsteps, connect_f=args.connect_f)
     elif args.model in spiking_resnet.__dict__:
         model = spiking_resnet.__dict__[args.model](num_classes=args.num_classes, T=args.nsteps)
+    elif args.model in spiking_mlp.__dict__:
+        model = spiking_mlp.__dict__[args.model](num_classes=args.num_classes, T=args.nsteps)
     else:
         raise NotImplementedError(args.model)
 

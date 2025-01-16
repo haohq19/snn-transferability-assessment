@@ -1,4 +1,3 @@
-# Modified from https://github.com/thuml/LogME/blob/main/LogME.py
 import numpy as np
 
 
@@ -67,19 +66,43 @@ def logME(f: np.ndarray, y: np.ndarray):
                 alpha = gamma / (m2 + 1e-5)
                 beta = (N - gamma) / (res2 + 1e-5)
                 t_ = alpha / beta
-                if abs(t_ - t) / t <= 1e-8: # 0.01:  # abs(t_ - t) <= 1e-5 or abs(1 / t_ - 1 / t) <= 1e-5:
+                if abs(t_ - t) / t <= 1e-8:  # abs(t_ - t) <= 1e-5 or abs(1 / t_ - 1 / t) <= 1e-5:
                     break
                 iter += 1
             iters.append(iter)
-            evidence = D / 2.0 * np.log(alpha) \
-                       + N / 2.0 * np.log(beta) \
-                       - 0.5 * np.sum(np.log(alpha + beta * sigma_full_size)) \
-                       - beta / 2.0 * res2 \
-                       - alpha / 2.0 * m2 \
-                       - N / 2.0 * np.log(2 * np.pi)
-            evidence /= N
+            evidence1 = D / 2.0 * np.log(alpha)
+            evidence2 = N / 2.0 * np.log(beta)
+            evidence3 = - 0.5 * np.sum(np.log(alpha + beta * sigma_full_size))
+            evidence4 = - beta / 2.0 * res2
+            evidence5 = - alpha / 2.0 * m2
+            evidence6 = - N / 2.0 * np.log(2 * np.pi)
+            evidence = (evidence1 + evidence2 + evidence3 + evidence4 + evidence5 + evidence6)/N
             m = 1.0 / (t + sigma) * s * x
             m = (vh.T @ m).reshape(-1)
             evidences.append(evidence)
-        return np.mean(evidences), np.mean(iters)
+        print(evidence1, evidence2, evidence3, evidence4, evidence5, evidence6)
+        # print(alpha, beta)
+        return np.mean(evidences), alpha, beta
 
+
+if __name__ == '__main__':
+    N = 100000
+    D = 10
+
+    f = np.random.rand(N, D)
+    y = np.random.randint(0, 10, N)
+    
+    f2 = np.concatenate([f, f], axis=1)# f * 2
+
+    l1, a1, b1 = logME(f, y)
+    l2, a2, b2 = logME(f2, y)
+    e0 = abs((l1 - l2) / l2)
+    e1 = abs(4 * a1 - a2) / a2
+    e2 = abs(b1 - b2) / b2
+    
+    print(e0, e1, e2)
+    print(a1, a2)
+    print(b1, b2)
+    print(l1, l2)
+
+    print('Done')

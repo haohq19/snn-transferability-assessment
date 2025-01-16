@@ -1,15 +1,14 @@
 torchrun --nproc_per_node=8 run_pretraining.py\
     --dataset 'es_imagenet' \
-    --root 'path to the dataset' \
+    --root '/home/haohq/datasets/ESImageNet-old' \
     --nsteps 8 \
     --num_classes 1000 \
-    --batch_size 60 \
-    --model 'spiking_resnet18' \
-    --connect_f 'ADD' \
+    --batch_size 64 \
+    --model 'spiking_mlp5' \
     --nepochs 10 \
-    --nworkers 32 \
+    --nworkers 8 \
     --lr 0.01 \
-    --output_dir '' \
+    --output_dir '/home/haohq/outputs/snn-trans-assess/pretrain' \
     --save_freq 1 \
     --step_size 3 \
     --gamma 0.3 \
